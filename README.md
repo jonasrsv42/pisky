@@ -1,6 +1,6 @@
 # Pisky: Python Bindings for Disky
 
-Pisky provides Python bindings for the [Disky](../disky) library, a high-performance Rust implementation of the Riegeli file format. These bindings allow Python developers to efficiently write record-based data using the Disky format.
+Pisky provides Python bindings for the [Disky](https://github.com/jonasrsv42/disky) library, a high-performance Rust implementation of the Riegeli file format. These bindings allow Python developers to efficiently write record-based data using the Disky format.
 
 ## Installation
 
