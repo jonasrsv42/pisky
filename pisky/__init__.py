@@ -5,15 +5,17 @@ This module provides Python bindings for the Disky library,
 which implements the Riegeli record format in Rust.
 """
 
-from .pisky import PyRecordWriter
+from typing import List, Optional
 
-__all__ = ["RecordWriter", "PyRecordWriter"]
+from ._pisky import PyRecordWriter
+
+__all__ = ["RecordWriter"]
 
 class RecordWriter:
     """
     A high-performance record writer for the Disky format.
     
-    This class provides a more Pythonic interface to the underlying
+    This class provides a Pythonic interface to the underlying
     Rust implementation of the Disky RecordWriter.
     
     Example:
@@ -79,11 +81,12 @@ class RecordWriter:
         """
         self._writer.close()
     
-    def __enter__(self):
+    def __enter__(self) -> "RecordWriter":
         """Enter context manager."""
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Optional[type], exc_val: Optional[Exception], 
+                exc_tb: Optional[object]) -> bool:
         """Exit context manager and close the writer."""
         self.close()
         return False  # Don't suppress exceptions

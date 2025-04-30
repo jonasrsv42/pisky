@@ -35,19 +35,24 @@ impl PyRecordWriter {
             .map_err(|e| PyIOError::new_err(e.to_string()))
     }
 
-    fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<Self>> {
-        Ok(slf)
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
+        slf
     }
 
-    fn __exit__(&mut self, _exc_type: Option<&PyAny>, _exc_value: Option<&PyAny>, _traceback: Option<&PyAny>) -> PyResult<bool> {
+    fn __exit__(
+        &mut self,
+        _exc_type: Option<Bound<'_, PyAny>>,
+        _exc_value: Option<Bound<'_, PyAny>>,
+        _traceback: Option<Bound<'_, PyAny>>,
+    ) -> PyResult<bool> {
         self.close()?;
         Ok(false)  // Don't suppress exceptions
     }
 }
 
-/// A Python module for working with Disky files
+/// Python module for low-level Disky bindings
 #[pymodule]
-fn pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyRecordWriter>()?;
     Ok(())
 }

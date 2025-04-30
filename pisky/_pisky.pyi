@@ -2,9 +2,10 @@ from typing import Any, Optional, Protocol, ContextManager
 
 class PyRecordWriter(ContextManager["PyRecordWriter"]):
     """
-    Python bindings for Disky's single-threaded record writer.
+    Low-level Python bindings for Disky's record writer.
     
-    This class provides an interface to write records to a Disky file.
+    This class provides a direct interface to the Rust implementation.
+    For a more Pythonic API, use the `RecordWriter` class.
     """
     
     def __init__(self, path: str) -> None:
