@@ -5,11 +5,35 @@ This module provides Python bindings for the Disky library,
 which implements the Riegeli record format in Rust.
 """
 
-from typing import Iterator, List, Optional
+from typing import Iterator, List, Optional, Protocol, Union
 
+# Import the low-level bindings
 from ._pisky import PyRecordWriter, PyRecordReader
 
-__all__ = ["RecordWriter", "RecordReader"]
+__all__ = ["RecordWriter", "RecordReader", "Bytes"]
+
+# Define a Protocol matching the interface of the Rust Bytes class
+class Bytes(Protocol):
+    """
+    Protocol matching the Rust bytes wrapper class provided by pyo3-bytes.
+    
+    This protocol represents the interface of bytes from Rust with zero-copy semantics.
+    It provides most of the methods that regular Python bytes have,
+    plus a to_bytes() method to convert to Python's native bytes.
+    """
+    def __len__(self) -> int: ...
+    def to_bytes(self) -> bytes: ...
+    def isalnum(self) -> bool: ...
+    def isalpha(self) -> bool: ...
+    def isascii(self) -> bool: ...
+    def isdigit(self) -> bool: ...
+    def islower(self) -> bool: ...
+    def isspace(self) -> bool: ...
+    def isupper(self) -> bool: ...
+    def lower(self) -> 'Bytes': ...
+    def upper(self) -> 'Bytes': ...
+    def removeprefix(self, prefix: bytes) -> 'Bytes': ...
+    def removesuffix(self, suffix: bytes) -> 'Bytes': ...
 
 class RecordWriter:
     """
@@ -106,7 +130,9 @@ class RecordReader:
         # Using a context manager and iterator interface
         with RecordReader("input.disky") as reader:
             for record in reader:
-                print(f"Record: {record}")
+                # Note: record is a custom Bytes object, use to_bytes() to get a standard Python bytes
+                python_bytes = record.to_bytes()
+                print(f"Record: {python_bytes.decode('utf-8')}")
         
         # Manual usage
         reader = RecordReader("input.disky")
@@ -115,7 +141,7 @@ class RecordReader:
                 record = reader.next_record()
                 if record is None:
                     break
-                print(f"Record: {record}")
+                print(f"Record: {record.to_bytes().decode('utf-8')}")
         finally:
             reader.close()
         ```
@@ -133,12 +159,13 @@ class RecordReader:
         """
         self._reader = PyRecordReader(path)
     
-    def next_record(self) -> Optional[bytes]:
+    def next_record(self) -> Optional[Bytes]:
         """
         Read the next record from the file.
         
         Returns:
-            The record data as bytes, or None if end of file is reached
+            The record data as a Bytes-like object, or None if end of file is reached.
+            You can use to_bytes() method to convert to a regular Python bytes object.
             
         Raises:
             IOError: If the read fails
@@ -155,7 +182,7 @@ class RecordReader:
         # through the Rust Drop trait
         pass
     
-    def __iter__(self) -> Iterator[bytes]:
+    def __iter__(self) -> Iterator[Bytes]:
         """Return an iterator over the records."""
         return RecordIterator(self)
     
@@ -179,7 +206,7 @@ class RecordIterator:
     def __iter__(self) -> "RecordIterator":
         return self
     
-    def __next__(self) -> bytes:
+    def __next__(self) -> Bytes:
         record = self._reader.next_record()
         if record is None:
             raise StopIteration
