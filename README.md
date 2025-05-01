@@ -2,21 +2,43 @@
 
 Pisky provides Python bindings for the [Disky](https://github.com/jonasrsv42/disky) library, a high-performance Rust implementation of the Riegeli file format. These bindings allow Python developers to efficiently read and write record-based data using the Disky format.
 
+## Features
+
+- **Single-threaded API**: Simple reader and writer classes with context manager support
+- **Multi-threaded API**: Parallel reading and writing for high throughput
+- **Zero-copy record access**: Efficient memory usage for high-performance applications
+- **Auto-sharding**: Distribute records across multiple files automatically
+- **Python-native interface**: Works with standard Python bytes and context managers
+
 ## Installation
 
-To install pisky, you need to have Rust and Python installed. Then you can build and install the package using:
+### From source
 
+1. Clone the repository:
 ```bash
-# Navigate to the pisky directory
-cd pisky
-
-# Install with pip
-pip install -e .
+git clone https://github.com/jonasrsv42/vibe-disky.git
+cd vibe-disky/pisky
 ```
 
-This will build the Rust extension module and install it for development use.
+2. Create a virtual environment and install development dependencies:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install maturin
+```
 
-## Usage
+3. Build and install in development mode:
+```bash
+maturin develop
+```
+
+### From PyPI (once published)
+
+```bash
+pip install pisky
+```
+
+## Quick Start
 
 ### Writing Records
 
@@ -90,78 +112,184 @@ finally:
     reader.close()  # Explicitly close the reader
 ```
 
+## Advanced Usage: Multi-Threaded API
+
+Pisky also provides a multi-threaded API for high-throughput scenarios. This API allows for parallel reading and writing of records across multiple shards.
+
+### Multi-Threaded Writing
+
+```python
+from pisky import MultiThreadedWriter
+import tempfile
+import os
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    # Multi-threaded writing with default settings
+    with MultiThreadedWriter.new_with_shards(dir_path=temp_dir) as writer:
+        for i in range(10000):
+            writer.write_record(f"Record #{i}".encode('utf-8'))
+    
+    # List the created shard files 
+    shard_files = [f for f in os.listdir(temp_dir) if f.startswith("shard_")]
+    print(f"Created {len(shard_files)} shard files")
+```
+
+### Multi-Threaded Reading
+
+```python
+from pisky import MultiThreadedReader
+import tempfile
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    # Assuming temp_dir contains sharded files
+    # Read using multi-threaded reader
+    with MultiThreadedReader.new_with_shards(dir_path=temp_dir) as reader:
+        count = 0
+        for record in reader:
+            count += 1
+            if count <= 5:  # Print just a few samples
+                print(f"Sample: {record.to_bytes().decode('utf-8')}")
+        print(f"Read {count} records")
+```
+
+### Custom Multi-Threaded Configuration
+
+```python
+from pisky import MultiThreadedWriter, MultiThreadedReader
+import tempfile
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    # Custom configuration for writer
+    with MultiThreadedWriter.new_with_shards(
+        dir_path=temp_dir,
+        prefix="custom",         # Custom file prefix (default: "shard")
+        num_shards=4,            # Number of shard files to create (default: 2)
+        worker_threads=8,        # Number of worker threads (default: auto)
+        task_queue_capacity=5000,# Task queue capacity (default: 2000)
+        enable_auto_sharding=True,# Enable auto-sharding (default: True)
+        append=False,            # Append mode (default: True)
+    ) as writer:
+        for i in range(1000):
+            writer.write_record(f"Record #{i}".encode('utf-8'))
+    
+    # Custom configuration for reader
+    with MultiThreadedReader.new_with_shards(
+        dir_path=temp_dir,
+        prefix="custom",         # Must match the writer's prefix
+        num_shards=4,            # Must match the writer's num_shards
+        worker_threads=4,        # Number of worker threads (default: 1)
+        queue_size_mb=1024,      # Queue size in MB (default: 10GB)
+    ) as reader:
+        for record in reader:
+            # Process records...
+            pass
+```
+
 ## API Reference
 
-### `RecordWriter`
+### Single-Threaded API
+
+#### `RecordWriter`
 
 The main class for writing records to Disky files.
 
-#### Constructor
+- **Constructor**: `RecordWriter(path: str)`: Create a new writer that writes to the specified file path.
+- **Methods**:
+  - `write_record(data: bytes) -> None`: Write a record to the file.
+  - `flush() -> None`: Flush any buffered records to disk.
+  - `close() -> None`: Close the writer, flushing any remaining data.
 
-- `RecordWriter(path: str)`: Create a new writer that writes to the specified file path.
-
-#### Methods
-
-- `write_record(data: bytes) -> None`: Write a record to the file.
-- `flush() -> None`: Flush any buffered records to disk.
-- `close() -> None`: Close the writer, flushing any remaining data.
-
-#### Context Manager
-
-`RecordWriter` supports the context manager protocol (`with` statement), which automatically closes the writer when exiting the context.
-
-### `RecordReader`
+#### `RecordReader`
 
 The main class for reading records from Disky files.
 
-#### Constructor
+- **Constructor**: `RecordReader(path: str)`: Create a new reader that reads from the specified file path.
+- **Methods**:
+  - `next_record() -> Optional[Bytes]`: Read the next record from the file, or None at EOF.
+  - `close() -> None`: Close the reader.
 
-- `RecordReader(path: str)`: Create a new reader that reads from the specified file path.
-
-#### Methods
-
-- `next_record() -> Optional[Bytes]`: Read the next record from the file, or None at EOF.
-- `close() -> None`: Close the reader.
-
-#### Context Manager and Iterator
-
-`RecordReader` supports both the context manager protocol (`with` statement) and the iterator protocol (for loops), making it easy to read records.
-
-### `Bytes`
+#### `Bytes`
 
 A custom bytes-like class returned by the reader, with zero-copy semantics.
 
-#### Methods
+- **Methods**:
+  - `to_bytes() -> bytes`: Convert to a standard Python bytes object.
+  - Plus most standard bytes methods like `isalnum()`, `upper()`, etc.
 
-- `to_bytes() -> bytes`: Convert to a standard Python bytes object.
-- Plus most standard bytes methods like `isalnum()`, `upper()`, etc.
+### Multi-Threaded API
 
-## Building from Source
+#### `MultiThreadedWriter`
 
-To build the project from source:
+The class for writing records across multiple shards in parallel.
+
+- **Constructor**: 
+  - `MultiThreadedWriter.new_with_shards(dir_path: str, prefix: str = "shard", num_shards: int = 2, worker_threads: Optional[int] = None, max_bytes_per_writer: Optional[int] = 10GB, task_queue_capacity: int = 2000, enable_auto_sharding: bool = True, append: bool = True)`: Create a new multi-threaded writer.
+  
+- **Methods**:
+  - `write_record(data: bytes) -> None`: Write a record to a shard file.
+  - `flush() -> None`: Flush any buffered records to disk.
+  - `close() -> None`: Close the writer, flushing any remaining data.
+  - `pending_tasks() -> int`: Get the number of pending write tasks.
+  - `available_writers() -> int`: Get the number of available writer resources.
+
+#### `MultiThreadedReader`
+
+The class for reading records from multiple shards in parallel.
+
+- **Constructor**: 
+  - `MultiThreadedReader.new_with_shards(dir_path: str, prefix: str = "shard", num_shards: int = 2, worker_threads: int = 1, queue_size_mb: int = 10*1024)`: Create a new multi-threaded reader.
+  
+- **Methods**:
+  - `next_record() -> Optional[Bytes]`: Read the next record, or None at EOF.
+  - `close() -> None`: Close the reader.
+  - `queued_records() -> int`: Get the number of records currently in the queue.
+  - `queued_bytes() -> int`: Get the total size of queued records in bytes.
+
+## Development
+
+### Setting up Development Environment
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/vibe-disky.git
-cd vibe-disky/pisky
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate
 
-# Build the extension module
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Build the extension in development mode
 maturin develop
 ```
 
-## Running the Examples
+### Running Tests
 
 ```bash
-# Navigate to the pisky examples directory
-cd pisky/examples
+# Run all tests
+python -m pytest
 
-# Run the read/write example
-python read_write_example.py
+# Run with verbose output
+python -m pytest -v
+
+# Run a specific test file
+python -m pytest tests/test_pisky.py
+```
+
+### Building the Package
+
+```bash
+# Build a wheel
+maturin build
+
+# Build and publish to PyPI
+maturin build --release
+twine upload target/wheels/*.whl
 ```
 
 ## Performance Considerations
 
 The Python bindings for Disky use zero-copy mechanisms when reading records, providing excellent performance even for large datasets. When processing large files, the memory usage is kept minimal as records are read on demand rather than all at once.
+
+For high-throughput scenarios, the multi-threaded API can significantly improve performance by distributing work across multiple threads and taking advantage of all available CPU cores.
 
 ## License
 

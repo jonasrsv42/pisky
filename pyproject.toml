@@ -12,6 +12,13 @@ classifiers = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+dev = [
+    "pytest >= 7.0.0", 
+    "pytest-cov",
+    "black",
+]
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
 module-name = "pisky._pisky"  # This creates _pisky.so instead of pisky.so
