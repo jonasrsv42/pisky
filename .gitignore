@@ -71,3 +71,5 @@ docs/_build/
 # Pyenv
 .python-version
 test_venv/
+example_consumer/.venv
+example_consumer/pisky_consumer*
