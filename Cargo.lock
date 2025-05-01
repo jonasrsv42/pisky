@@ -32,6 +32,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "disky"
 version = "0.1.0"
+source = "git+ssh://git@github.com/jonasrsv42/disky#8a47b94bd71fb0f18a0e8284246c7b20d2848524"
 dependencies = [
  "bytes",
  "env_logger",
