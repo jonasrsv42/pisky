@@ -72,9 +72,40 @@ GitHub Releases is the recommended way to distribute binary wheels without commi
 
 ## Installing from GitHub Release
 
-To use the package from a GitHub release in another project, you can reference it in your `pyproject.toml` or `requirements.txt`:
+There are two primary methods to install pisky from a private GitHub repository:
 
-### In a pyproject.toml file:
+### Method 1: Using SSH (Recommended for Private Repositories)
+
+This method uses git+ssh to access the private repository, which relies on your SSH keys for authentication:
+
+#### In a pyproject.toml file:
+
+```toml
+[project]
+dependencies = [
+    "pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.1.0"
+]
+```
+
+#### In a requirements.txt file:
+
+```
+pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.1.0
+```
+
+#### With pip:
+
+```bash
+pip install "pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.1.0"
+```
+
+Note: This method will clone the repository and build the package from source, which requires Rust to be installed on the system.
+
+### Method 2: Direct Wheel Download (For HTTP-Accessible Repositories)
+
+If your repository allows HTTPS access to release assets, you can directly reference the wheel:
+
+#### In a pyproject.toml file:
 
 ```toml
 [project]
@@ -83,13 +114,13 @@ dependencies = [
 ]
 ```
 
-### In a requirements.txt file:
+#### In a requirements.txt file:
 
 ```
 pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.1.0/pisky-0.1.0-cp310-cp310-manylinux_2_17_x86_64.whl
 ```
 
-### With pip:
+#### With pip:
 
 ```bash
 pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.1.0/pisky-0.1.0-cp310-cp310-manylinux_2_17_x86_64.whl"
