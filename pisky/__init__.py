@@ -6,6 +6,12 @@ which implements the Riegeli record format in Rust.
 """
 
 from typing import Iterator, List, Optional, Protocol, Union, Literal
+import importlib.metadata
+
+try:
+    __version__ = importlib.metadata.version("pisky")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "unknown"
 
 # Import the low-level bindings
 from ._pisky import (
@@ -18,7 +24,7 @@ from ._pisky import (
 )
 
 __all__ = ["RecordWriter", "RecordReader", "MultiThreadedWriter", "MultiThreadedReader", 
-           "Bytes", "CorruptionStrategy", "set_log_level"]
+           "Bytes", "CorruptionStrategy", "set_log_level", "__version__"]
 
 def set_log_level(level: str) -> None:
     """
