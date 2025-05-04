@@ -40,9 +40,53 @@ maturin build --release --interpreter python3.10
 maturin build --release --interpreter python3.8 python3.9 python3.10
 ```
 
-## Creating a GitHub Release Manually
+## Creating a GitHub Release
 
-GitHub Releases is the recommended way to distribute binary wheels without committing them to the repository.
+GitHub Releases is the recommended way to distribute binary wheels without committing them to the repository. You can create releases either manually or using the GitHub CLI.
+
+### Option 1: Using GitHub CLI (Recommended)
+
+The GitHub CLI (`gh`) makes it easier to automate the release process:
+
+1. **Update version number**:
+
+   - Update the version in `Cargo.toml` in the `[package]` section (e.g., to 0.2.0)
+   - Make sure all changes are committed
+
+2. **Build the wheels**:
+
+   ```bash
+   maturin build --release
+   ```
+
+3. **Create the release and upload assets in one command**:
+
+   ```bash
+   # Create a new tag and release with the GitHub CLI
+   VERSION=0.2.0
+   gh release create v$VERSION \
+     --title "Pisky v$VERSION" \
+     --notes "Release notes for version $VERSION:
+     
+   - Added corruption recovery support
+   - <other changes>" \
+     --target main 
+   
+   # Upload only the latest wheel for each Python version
+   # This uses a pattern like 'pisky-0.2.0-cp310-cp310-*.whl'
+   find target/wheels -name "pisky-$VERSION-*.whl" | sort | uniq -f 2 | xargs -I{} gh release upload v$VERSION {}
+   ```
+
+   You can also create the tag separately if preferred:
+
+   ```bash
+   git tag -a v$VERSION -m "Release v$VERSION"
+   git push origin v$VERSION
+   ```
+
+### Option 2: Manual Release Process
+
+If you prefer the manual approach:
 
 1. **Update version number**:
 
@@ -53,10 +97,10 @@ GitHub Releases is the recommended way to distribute binary wheels without commi
 
    ```bash
    # Create a new tag with semantic versioning
-   git tag -a v0.1.0 -m "Release v0.1.0"
+   git tag -a v0.2.0 -m "Release v0.2.0"
    
    # Push the tag to GitHub
-   git push origin v0.1.0
+   git push origin v0.2.0
    ```
 
 3. **Create a GitHub release**:
@@ -64,10 +108,10 @@ GitHub Releases is the recommended way to distribute binary wheels without commi
    - Go to the repository on GitHub (`https://github.com/jonasrsv42/pisky`)
    - Click "Releases" on the right side
    - Click "Draft a new release"
-   - Select the tag you just pushed (v0.1.0)
-   - Set the release title (e.g., "Pisky v0.1.0")
+   - Select the tag you just pushed (v0.2.0)
+   - Set the release title (e.g., "Pisky v0.2.0")
    - Add release notes describing the changes
-   - Upload the wheel files from `target/wheels/`
+   - Upload the wheel files from `target/wheels/` (typically one per Python version)
    - Click "Publish release"
 
 ## Installing from GitHub Release
@@ -132,8 +176,27 @@ Make sure to replace:
 
 ## Release Checklist
 
-1. Update version in Cargo.toml
+### Using GitHub CLI (Recommended)
+
+1. Update version in Cargo.toml to 0.2.0
 2. Build wheels: `maturin build --release`
-3. Create and push a tag: `git tag -a v0.1.0 -m "Release v0.1.0" && git push origin v0.1.0`
-4. Create a GitHub release and upload the wheels from `target/wheels/`
-5. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.1.0/[wheel-filename].whl"`
+3. Create a release with GitHub CLI:
+   ```bash
+   VERSION=0.2.0
+   gh release create v$VERSION \
+     --title "Pisky v$VERSION" \
+     --notes "Release notes for version $VERSION" \
+     --target main
+
+   # Upload wheels
+   find target/wheels -name "pisky-$VERSION-*.whl" | sort | uniq -f 2 | xargs -I{} gh release upload v$VERSION {}
+   ```
+4. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.2.0/[wheel-filename].whl"`
+
+### Manual Process
+
+1. Update version in Cargo.toml to 0.2.0
+2. Build wheels: `maturin build --release`
+3. Create and push a tag: `git tag -a v0.2.0 -m "Release v0.2.0" && git push origin v0.2.0`
+4. Create a GitHub release through the web interface and upload the wheels from `target/wheels/`
+5. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.2.0/[wheel-filename].whl"`
