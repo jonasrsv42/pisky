@@ -16,3 +16,5 @@ pyo3 = "0.24.0"
 pyo3-bytes = "0.2.0"
 bytes = "1.4"
 disky = { git = "ssh://git@github.com/jonasrsv42/disky", features = ["parallel"]}
+log = "0.4"
+env_logger = "0.10"

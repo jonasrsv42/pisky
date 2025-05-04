@@ -5,12 +5,37 @@ This module provides Python bindings for the Disky library,
 which implements the Riegeli record format in Rust.
 """
 
-from typing import Iterator, List, Optional, Protocol, Union
+from typing import Iterator, List, Optional, Protocol, Union, Literal
 
 # Import the low-level bindings
-from ._pisky import PyRecordWriter, PyRecordReader, PyMultiThreadedWriter, PyMultiThreadedReader
+from ._pisky import (
+    PyRecordWriter, 
+    PyRecordReader, 
+    PyMultiThreadedWriter, 
+    PyMultiThreadedReader, 
+    PyCorruptionStrategy,
+    set_log_level as _set_log_level
+)
 
-__all__ = ["RecordWriter", "RecordReader", "MultiThreadedWriter", "MultiThreadedReader", "Bytes"]
+__all__ = ["RecordWriter", "RecordReader", "MultiThreadedWriter", "MultiThreadedReader", 
+           "Bytes", "CorruptionStrategy", "set_log_level"]
+
+def set_log_level(level: str) -> None:
+    """
+    Set the logging level for the Disky library.
+    
+    Args:
+        level: One of "trace", "debug", "info", "warn", "error", or "off"
+        
+    Raises:
+        IOError: If an invalid log level is provided
+    """
+    _set_log_level(level)
+
+# Define a Python enum for CorruptionStrategy
+class CorruptionStrategy:
+    ERROR = PyCorruptionStrategy.Error
+    RECOVER = PyCorruptionStrategy.Recover
 
 # Define a Protocol matching the interface of the Rust Bytes class
 class Bytes(Protocol):
@@ -125,7 +150,7 @@ class RecordReader:
     
     Example:
         ```python
-        from pisky import RecordReader
+        from pisky import RecordReader, CorruptionStrategy
         
         # Using a context manager and iterator interface
         with RecordReader("input.disky") as reader:
@@ -133,6 +158,11 @@ class RecordReader:
                 # Note: record is a custom Bytes object, use to_bytes() to get a standard Python bytes
                 python_bytes = record.to_bytes()
                 print(f"Record: {python_bytes.decode('utf-8')}")
+        
+        # Using corruption recovery mode
+        with RecordReader("input.disky", corruption_strategy=CorruptionStrategy.RECOVER) as reader:
+            for record in reader:
+                print(f"Record: {record.to_bytes().decode('utf-8')}")
         
         # Manual usage
         reader = RecordReader("input.disky")
@@ -147,17 +177,22 @@ class RecordReader:
         ```
     """
     
-    def __init__(self, path: str):
+    def __init__(self, path: str, corruption_strategy=None):
         """
         Create a new RecordReader that reads from the specified path.
         
         Args:
             path: Path to the input file
+            corruption_strategy: Strategy to handle corrupt records:
+                - None or CorruptionStrategy.ERROR: Return an error on corruption (default)
+                - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue reading.
+                  A chunk is a collection of records (typically about 1MB of data),
+                  so this setting will drop all records in a corrupted chunk.
             
         Raises:
             IOError: If the file cannot be opened
         """
-        self._reader = PyRecordReader(path)
+        self._reader = PyRecordReader(path, corruption_strategy)
     
     def next_record(self) -> Optional[Bytes]:
         """
@@ -383,7 +418,7 @@ class MultiThreadedReader:
     
     Example:
         ```python
-        from pisky import MultiThreadedReader
+        from pisky import MultiThreadedReader, CorruptionStrategy
         
         # Using a context manager and iterator interface with default settings
         with MultiThreadedReader.new_with_shards(
@@ -394,13 +429,14 @@ class MultiThreadedReader:
                 python_bytes = record.to_bytes()
                 print(f"Record: {python_bytes.decode('utf-8')}")
                 
-        # Or with custom settings
+        # Or with custom settings including corruption recovery
         with MultiThreadedReader.new_with_shards(
             dir_path="/tmp/custom",
             prefix="custom_shard",
             num_shards=4,
             worker_threads=4,
-            queue_size_mb=1024  # 1 GB
+            queue_size_mb=1024,  # 1 GB
+            corruption_strategy=CorruptionStrategy.RECOVER
         ) as reader:
             for record in reader:
                 print(f"Record: {record.to_bytes().decode('utf-8')}")
@@ -413,7 +449,8 @@ class MultiThreadedReader:
         prefix: str = "shard", 
         num_shards: int = 2, 
         worker_threads: int = 1,
-        queue_size_mb: int = 10 * 1024  # 10 GB in MB
+        queue_size_mb: int = 10 * 1024,  # 10 GB in MB
+        corruption_strategy = None
     ) -> "MultiThreadedReader":
         """
         Create a new MultiThreadedReader that reads from multiple sharded files.
@@ -424,6 +461,11 @@ class MultiThreadedReader:
             num_shards: Number of shards to read from (default: 2)
             worker_threads: Number of worker threads to use (default: 1)
             queue_size_mb: Size of the queue in megabytes (default: 10 GB)
+            corruption_strategy: Strategy to handle corrupt records:
+                - None or CorruptionStrategy.ERROR: Return an error on corruption (default)
+                - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue reading.
+                  A chunk is a collection of records (typically about 1MB of data),
+                  so this setting will drop all records in a corrupted chunk.
             
         Returns:
             A new MultiThreadedReader instance
@@ -436,7 +478,8 @@ class MultiThreadedReader:
             prefix, 
             num_shards, 
             worker_threads,
-            queue_size_mb
+            queue_size_mb,
+            corruption_strategy
         )
         return MultiThreadedReader(reader)
     

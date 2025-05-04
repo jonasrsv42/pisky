@@ -3,6 +3,8 @@ use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use env_logger;
+use log::LevelFilter;
 
 use disky::reader::{DiskyPiece, RecordReader};
 use disky::writer::RecordWriter;
@@ -64,6 +66,13 @@ impl PyRecordWriter {
 }
 
 #[pyclass]
+#[derive(Clone, Copy)]
+enum PyCorruptionStrategy {
+    Error,
+    Recover,
+}
+
+#[pyclass]
 struct PyRecordReader {
     reader: RecordReader<File>,
 }
@@ -71,9 +80,17 @@ struct PyRecordReader {
 #[pymethods]
 impl PyRecordReader {
     #[new]
-    fn new(path: &str) -> PyResult<Self> {
+    fn new(path: &str, corruption_strategy: Option<PyCorruptionStrategy>) -> PyResult<Self> {
         let file = File::open(Path::new(path)).map_err(|e| PyIOError::new_err(e.to_string()))?;
-        let reader = RecordReader::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        
+        let reader = match corruption_strategy {
+            Some(PyCorruptionStrategy::Recover) => {
+                let config = disky::reader::RecordReaderConfig::default()
+                    .with_corruption_strategy(disky::reader::CorruptionStrategy::Recover);
+                RecordReader::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
+            },
+            _ => RecordReader::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?,
+        };
 
         Ok(Self { reader })
     }
@@ -252,6 +269,7 @@ impl PyMultiThreadedReader {
         num_shards: usize,
         worker_threads: Option<usize>,
         queue_size_mb: Option<usize>,
+        corruption_strategy: Option<PyCorruptionStrategy>,
     ) -> PyResult<Self> {
         // Create a FileShardLocator for the sharded files
         let shard_locator = FileShardLocator::new(PathBuf::from(dir_path), prefix)
@@ -260,30 +278,45 @@ impl PyMultiThreadedReader {
         // Configure the sharding
         let sharding_config = ReaderShardingConfig::new(Box::new(shard_locator), num_shards);
 
+        // Create the parallel reader configuration with corruption strategy if specified
+        let mut parallel_reader_config = ParallelReaderConfig::default();
+        
+        // Set corruption strategy if specified
+        if let Some(PyCorruptionStrategy::Recover) = corruption_strategy {
+            // Update the reader_config with the corruption strategy
+            let reader_config = parallel_reader_config.reader_config
+                .with_corruption_strategy(disky::reader::CorruptionStrategy::Recover);
+            parallel_reader_config.reader_config = reader_config;
+        }
+
         // Create the reader configuration
         let config = match (worker_threads, queue_size_mb) {
             (Some(threads), Some(queue_mb)) => {
                 MultiThreadedReaderConfig {
-                    reader_config: ParallelReaderConfig::default(),
+                    reader_config: parallel_reader_config,
                     worker_threads: threads,
                     queue_size_bytes: queue_mb * 1024 * 1024, // Convert MB to bytes
                 }
             }
             (Some(threads), None) => {
                 MultiThreadedReaderConfig {
-                    reader_config: ParallelReaderConfig::default(),
+                    reader_config: parallel_reader_config,
                     worker_threads: threads,
                     queue_size_bytes: 8 * 1024 * 1024, // Default 8MB
                 }
             }
             (None, Some(queue_mb)) => {
                 MultiThreadedReaderConfig {
-                    reader_config: ParallelReaderConfig::default(),
+                    reader_config: parallel_reader_config,
                     worker_threads: MultiThreadedReaderConfig::default().worker_threads,
                     queue_size_bytes: queue_mb * 1024 * 1024, // Convert MB to bytes
                 }
             }
-            (None, None) => MultiThreadedReaderConfig::default(),
+            (None, None) => {
+                let mut config = MultiThreadedReaderConfig::default();
+                config.reader_config = parallel_reader_config;
+                config
+            },
         };
 
         // Create the multi-threaded reader
@@ -367,13 +400,48 @@ impl PyMultiThreadedReader {
     }
 }
 
+/// Initialize logger with a specific logging level
+fn init_logger(level: LevelFilter) {
+    let _ = env_logger::builder()
+        .filter_level(level)
+        .format_timestamp(None)
+        .format_target(false)
+        .try_init();
+}
+
 /// Python module for low-level Disky bindings
 #[pymodule]
 fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Initialize logger with info level by default
+    init_logger(LevelFilter::Info);
+    
     m.add_class::<PyRecordWriter>()?;
     m.add_class::<PyRecordReader>()?;
     m.add_class::<PyMultiThreadedWriter>()?;
     m.add_class::<PyMultiThreadedReader>()?;
+    m.add_class::<PyCorruptionStrategy>()?;
+
+    // Add function to set log level
+    #[pyfn(m)]
+    fn set_log_level(level_str: &str) -> PyResult<()> {
+        let level = match level_str.to_lowercase().as_str() {
+            "trace" => LevelFilter::Trace,
+            "debug" => LevelFilter::Debug,
+            "info" => LevelFilter::Info,
+            "warn" | "warning" => LevelFilter::Warn,
+            "error" => LevelFilter::Error,
+            "off" => LevelFilter::Off,
+            _ => {
+                return Err(PyIOError::new_err(format!(
+                    "Invalid log level: {}. Valid levels are: trace, debug, info, warn, error, off",
+                    level_str
+                )))
+            }
+        };
+        
+        init_logger(level);
+        Ok(())
+    }
 
     Ok(())
 }

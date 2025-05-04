@@ -1,4 +1,23 @@
-from typing import Any, Iterator, Optional, Protocol, ContextManager
+from typing import Any, Iterator, Optional, Protocol, ContextManager, Literal
+
+def set_log_level(level_str: str) -> None:
+    """
+    Set the logging level for the Disky library.
+    
+    Args:
+        level_str: One of "trace", "debug", "info", "warn", "error", or "off"
+        
+    Raises:
+        IOError: If an invalid log level is provided
+    """
+    ...
+
+class PyCorruptionStrategy:
+    """
+    Enum for corruption handling strategies in Disky.
+    """
+    Error: 'PyCorruptionStrategy'
+    Recover: 'PyCorruptionStrategy'
 
 class Bytes:
     """
@@ -107,12 +126,13 @@ class PyRecordReader(Iterator[Bytes]):
     For a more Pythonic API, use the `RecordReader` class.
     """
     
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, corruption_strategy: Optional[PyCorruptionStrategy] = None) -> None:
         """
         Create a new PyRecordReader that reads from the specified path.
         
         Args:
             path: Path to the input file
+            corruption_strategy: Strategy to handle corrupted records
         
         Raises:
             IOError: If the file cannot be opened
@@ -138,3 +158,68 @@ class PyRecordReader(Iterator[Bytes]):
     def __next__(self) -> Optional[Bytes]:
         """Get the next record or None if at EOF."""
         ...
+        
+class PyMultiThreadedWriter(ContextManager["PyMultiThreadedWriter"]):
+    """
+    Low-level Python bindings for Disky's multi-threaded writer.
+    
+    This class provides a direct interface to the Rust implementation.
+    For a more Pythonic API, use the `MultiThreadedWriter` class.
+    """
+    
+    @staticmethod
+    def new_with_shards(
+        dir_path: str,
+        prefix: str = "shard",
+        num_shards: int = 2,
+        worker_threads: Optional[int] = None,
+        max_bytes_per_writer: Optional[int] = None,
+        task_queue_capacity: Optional[int] = None,
+        enable_auto_sharding: Optional[bool] = None,
+        append: Optional[bool] = None
+    ) -> "PyMultiThreadedWriter": ...
+    
+    def write_record(self, data: bytes) -> None: ...
+    def flush(self) -> None: ...
+    def close(self) -> None: ...
+    def pending_tasks(self) -> int: ...
+    def available_writers(self) -> int: ...
+    def __enter__(self) -> "PyMultiThreadedWriter": ...
+    def __exit__(
+        self, 
+        exc_type: Optional[type], 
+        exc_val: Optional[Exception], 
+        exc_tb: Optional[Any]
+    ) -> bool: ...
+
+class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedReader"]):
+    """
+    Low-level Python bindings for Disky's multi-threaded reader.
+    
+    This class provides a direct interface to the Rust implementation.
+    For a more Pythonic API, use the `MultiThreadedReader` class.
+    """
+    
+    @staticmethod
+    def new_with_shards(
+        dir_path: str,
+        prefix: str = "shard",
+        num_shards: int = 2,
+        worker_threads: Optional[int] = None,
+        queue_size_mb: Optional[int] = None,
+        corruption_strategy: Optional[PyCorruptionStrategy] = None
+    ) -> "PyMultiThreadedReader": ...
+    
+    def next_record(self) -> Optional[Bytes]: ...
+    def close(self) -> None: ...
+    def queued_records(self) -> int: ...
+    def queued_bytes(self) -> int: ...
+    def __iter__(self) -> "PyMultiThreadedReader": ...
+    def __next__(self) -> Optional[Bytes]: ...
+    def __enter__(self) -> "PyMultiThreadedReader": ...
+    def __exit__(
+        self, 
+        exc_type: Optional[type], 
+        exc_val: Optional[Exception], 
+        exc_tb: Optional[Any]
+    ) -> bool: ...
