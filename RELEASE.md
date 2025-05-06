@@ -128,20 +128,20 @@ This method uses git+ssh to access the private repository, which relies on your 
 ```toml
 [project]
 dependencies = [
-    "pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.1.0"
+    "pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.4.0"
 ]
 ```
 
 #### In a requirements.txt file:
 
 ```
-pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.1.0
+pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.4.0
 ```
 
 #### With pip:
 
 ```bash
-pip install "pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.1.0"
+pip install "pisky @ git+ssh://git@github.com/jonasrsv42/pisky.git@v0.4.0"
 ```
 
 Note: This method will clone the repository and build the package from source, which requires Rust to be installed on the system.
@@ -155,52 +155,51 @@ If your repository allows HTTPS access to release assets, you can directly refer
 ```toml
 [project]
 dependencies = [
-    "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.1.0/pisky-0.1.0-cp310-cp310-manylinux_2_17_x86_64.whl"
+    "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.4.0/pisky-0.4.0-cp310-cp310-manylinux_2_17_x86_64.whl"
 ]
 ```
 
 #### In a requirements.txt file:
 
 ```
-pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.1.0/pisky-0.1.0-cp310-cp310-manylinux_2_17_x86_64.whl
+pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.4.0/pisky-0.4.0-cp310-cp310-manylinux_2_17_x86_64.whl
 ```
 
 #### With pip:
 
 ```bash
-pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.1.0/pisky-0.1.0-cp310-cp310-manylinux_2_17_x86_64.whl"
+pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.4.0/pisky-0.4.0-cp310-cp310-manylinux_2_17_x86_64.whl"
 ```
 
 Make sure to replace:
-- The version number in the URL (v0.1.0)
+- The version number in the URL (v0.4.0)
 - The wheel filename to match the Python version and platform you need
 
 ## Release Checklist
 
 ### Using GitHub CLI (Recommended)
 
-1. Update version in Cargo.toml to 0.3.0
+1. Update version in Cargo.toml to 0.4.0
 2. Build wheels: `maturin build --release`
 3. Create a release with GitHub CLI:
    ```bash
-   VERSION=0.3.0
+   VERSION=0.4.0
    gh release create v$VERSION \
      --title "Pisky v$VERSION" \
      --notes "Release notes for version $VERSION:
      
-   - Added static type checking support with mypy
-   - Added py.typed marker file for better type checker compatibility" \
+   - Update release notes here" \
      --target main
 
    # Upload wheels
    find target/wheels -name "pisky-$VERSION-*.whl" | sort | uniq -f 2 | xargs -I{} gh release upload v$VERSION {}
    ```
-4. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.3.0/[wheel-filename].whl"`
+4. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.4.0/[wheel-filename].whl"`
 
 ### Manual Process
 
-1. Update version in Cargo.toml to 0.3.0
+1. Update version in Cargo.toml to 0.4.0
 2. Build wheels: `maturin build --release`
-3. Create and push a tag: `git tag -a v0.3.0 -m "Release v0.3.0" && git push origin v0.3.0`
+3. Create and push a tag: `git tag -a v0.4.0 -m "Release v0.4.0" && git push origin v0.4.0`
 4. Create a GitHub release through the web interface and upload the wheels from `target/wheels/`
-5. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.3.0/[wheel-filename].whl"`
+5. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.4.0/[wheel-filename].whl"`
