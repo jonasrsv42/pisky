@@ -4,7 +4,7 @@
 set -e  # Exit on any error
 
 # Variables
-RELEASE_VERSION="v0.1.0"
+RELEASE_VERSION="v0.3.0"
 
 echo "🚀 Creating a new virtual environment for testing..."
 python3 -m venv test_venv
