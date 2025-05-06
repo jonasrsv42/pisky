@@ -23,4 +23,4 @@ dev = [
 features = ["pyo3/extension-module"]
 module-name = "pisky._pisky"  # This creates _pisky.so instead of pisky.so
 python-source = "pisky"
-include = ["pisky"]
+include = ["pisky", "pisky/py.typed"]

@@ -69,6 +69,7 @@ The GitHub CLI (`gh`) makes it easier to automate the release process:
      --notes "Release notes for version $VERSION:
      
    - Added corruption recovery support
+   - Added static type checking support with mypy
    - <other changes>" \
      --target main 
    
@@ -178,25 +179,28 @@ Make sure to replace:
 
 ### Using GitHub CLI (Recommended)
 
-1. Update version in Cargo.toml to 0.2.0
+1. Update version in Cargo.toml to 0.3.0
 2. Build wheels: `maturin build --release`
 3. Create a release with GitHub CLI:
    ```bash
-   VERSION=0.2.0
+   VERSION=0.3.0
    gh release create v$VERSION \
      --title "Pisky v$VERSION" \
-     --notes "Release notes for version $VERSION" \
+     --notes "Release notes for version $VERSION:
+     
+   - Added static type checking support with mypy
+   - Added py.typed marker file for better type checker compatibility" \
      --target main
 
    # Upload wheels
    find target/wheels -name "pisky-$VERSION-*.whl" | sort | uniq -f 2 | xargs -I{} gh release upload v$VERSION {}
    ```
-4. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.2.0/[wheel-filename].whl"`
+4. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.3.0/[wheel-filename].whl"`
 
 ### Manual Process
 
-1. Update version in Cargo.toml to 0.2.0
+1. Update version in Cargo.toml to 0.3.0
 2. Build wheels: `maturin build --release`
-3. Create and push a tag: `git tag -a v0.2.0 -m "Release v0.2.0" && git push origin v0.2.0`
+3. Create and push a tag: `git tag -a v0.3.0 -m "Release v0.3.0" && git push origin v0.3.0`
 4. Create a GitHub release through the web interface and upload the wheels from `target/wheels/`
-5. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.2.0/[wheel-filename].whl"`
+5. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.3.0/[wheel-filename].whl"`

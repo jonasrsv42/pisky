@@ -9,6 +9,7 @@ Pisky provides Python bindings for the [Disky](https://github.com/jonasrsv42/dis
 - **Zero-copy record access**: Efficient memory usage for high-performance applications
 - **Auto-sharding**: Distribute records across multiple files automatically
 - **Python-native interface**: Works with standard Python bytes and context managers
+- **Static type checking**: Full type hints with mypy support
 
 ## Installation
 
@@ -259,6 +260,18 @@ pip install -e ".[dev]"
 
 # Build the extension in development mode
 maturin develop
+```
+
+### Type Checking
+
+Pisky includes type annotations and supports static type checking with mypy. When using Pisky in your project, mypy will automatically recognize and validate the types.
+
+```bash
+# Install mypy
+pip install mypy
+
+# Run mypy on your project that uses pisky
+mypy your_project.py
 ```
 
 ### Running Tests

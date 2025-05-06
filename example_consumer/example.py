@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Example consumer application for pisky.
 
@@ -6,9 +5,10 @@ This script demonstrates how to use pisky in a project that depends on it.
 """
 import tempfile
 import os
-from pisky import RecordWriter, RecordReader, MultiThreadedWriter, MultiThreadedReader
+from typing import List, Optional
+from pisky import RecordWriter, RecordReader, MultiThreadedWriter, MultiThreadedReader, Bytes
 
-def simple_example():
+def simple_example() -> None:
     """Demonstrate basic single-threaded read/write functionality."""
     print("Running simple example...")
     
@@ -25,12 +25,13 @@ def simple_example():
         # Read records
         with RecordReader(temp_path) as reader:
             for i, record in enumerate(reader):
+                # record has type Bytes, which is explicitly imported
                 print(f"Read record {i}: {record.to_bytes().decode()}")
     finally:
         # Clean up
         os.unlink(temp_path)
 
-def multi_threaded_example():
+def multi_threaded_example() -> None:
     """Demonstrate multi-threaded API with sharding."""
     print("\nRunning multi-threaded example...")
     
@@ -49,7 +50,7 @@ def multi_threaded_example():
             print(f"Wrote 20 records across 3 shards")
         
         # List created files
-        shard_files = [f for f in os.listdir(temp_dir) if f.startswith("example")]
+        shard_files: List[str] = [f for f in os.listdir(temp_dir) if f.startswith("example")]
         print(f"Created shard files: {shard_files}")
         
         # Read from multiple shards
