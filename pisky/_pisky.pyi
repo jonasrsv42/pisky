@@ -1,4 +1,9 @@
-from typing import Any, Iterator, Optional, Protocol, ContextManager, Literal
+from typing import Any, Iterator, Optional, Protocol, ContextManager, Literal, Union, overload
+from pathlib import Path
+from os import PathLike
+
+# Define a type for path-like objects (string, Path, or any object with __str__)
+PathType = Union[str, Path, PathLike, Any]
 
 def set_log_level(level_str: str) -> None:
     """
@@ -65,15 +70,17 @@ class PyRecordWriter(ContextManager["PyRecordWriter"]):
     For a more Pythonic API, use the `RecordWriter` class.
     """
     
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: PathType) -> None:
         """
         Create a new PyRecordWriter that writes to the specified path.
         
         Args:
-            path: Path to the output file
+            path: Path to the output file. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
         
         Raises:
             IOError: If the file cannot be created
+            TypeError: If the path cannot be converted to a string
         """
         ...
     
@@ -126,16 +133,18 @@ class PyRecordReader(Iterator[Bytes]):
     For a more Pythonic API, use the `RecordReader` class.
     """
     
-    def __init__(self, path: str, corruption_strategy: Optional[PyCorruptionStrategy] = None) -> None:
+    def __init__(self, path: PathType, corruption_strategy: Optional[PyCorruptionStrategy] = None) -> None:
         """
         Create a new PyRecordReader that reads from the specified path.
         
         Args:
-            path: Path to the input file
+            path: Path to the input file. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
             corruption_strategy: Strategy to handle corrupted records
         
         Raises:
             IOError: If the file cannot be opened
+            TypeError: If the path cannot be converted to a string
         """
         ...
     
@@ -169,7 +178,7 @@ class PyMultiThreadedWriter(ContextManager["PyMultiThreadedWriter"]):
     
     @staticmethod
     def new_with_shards(
-        dir_path: str,
+        dir_path: PathType,
         prefix: str = "shard",
         num_shards: int = 2,
         worker_threads: Optional[int] = None,
@@ -202,7 +211,7 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
     
     @staticmethod
     def new_with_shards(
-        dir_path: str,
+        dir_path: PathType,
         prefix: str = "shard",
         num_shards: int = 2,
         worker_threads: Optional[int] = None,

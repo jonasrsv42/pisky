@@ -5,8 +5,13 @@ This module provides Python bindings for the Disky library,
 which implements the Riegeli record format in Rust.
 """
 
-from typing import Iterator, List, Optional, Protocol, Union, Literal
+from typing import Iterator, List, Optional, Protocol, Union, Literal, Any
+from pathlib import Path
+from os import PathLike
 import importlib.metadata
+
+# Define a type for path-like objects (string, Path, or any object with __str__)
+PathType = Union[str, Path, PathLike, Any]
 
 try:
     __version__ = importlib.metadata.version("pisky")
@@ -76,11 +81,17 @@ class RecordWriter:
     Example:
         ```python
         from pisky import RecordWriter
+        from pathlib import Path
         
-        # Using a context manager (recommended)
+        # Using a string path
         with RecordWriter("output.disky") as writer:
             writer.write_record(b"Record 1")
             writer.write_record(b"Record 2")
+        
+        # Using a pathlib.Path
+        path = Path("/tmp/output.disky")
+        with RecordWriter(path) as writer:
+            writer.write_record(b"Record 3")
         
         # Manual usage
         writer = RecordWriter("output.disky")
@@ -92,17 +103,21 @@ class RecordWriter:
         ```
     """
     
-    def __init__(self, path: str):
+    def __init__(self, path: PathType):
         """
         Create a new RecordWriter that writes to the specified path.
         
         Args:
-            path: Path to the output file
+            path: Path to the output file. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
             
         Raises:
             IOError: If the file cannot be created
+            TypeError: If the path cannot be converted to a string
         """
-        self._writer = PyRecordWriter(path)
+        # Convert path to string in Python before passing to Rust
+        path_str = str(path)
+        self._writer = PyRecordWriter(path_str)
     
     def write_record(self, data: bytes) -> None:
         """
@@ -157,16 +172,18 @@ class RecordReader:
     Example:
         ```python
         from pisky import RecordReader, CorruptionStrategy
+        from pathlib import Path
         
-        # Using a context manager and iterator interface
+        # Using a string path
         with RecordReader("input.disky") as reader:
             for record in reader:
                 # Note: record is a custom Bytes object, use to_bytes() to get a standard Python bytes
                 python_bytes = record.to_bytes()
                 print(f"Record: {python_bytes.decode('utf-8')}")
         
-        # Using corruption recovery mode
-        with RecordReader("input.disky", corruption_strategy=CorruptionStrategy.RECOVER) as reader:
+        # Using a pathlib.Path
+        path = Path("/tmp/input.disky")
+        with RecordReader(path, corruption_strategy=CorruptionStrategy.RECOVER) as reader:
             for record in reader:
                 print(f"Record: {record.to_bytes().decode('utf-8')}")
         
@@ -183,12 +200,13 @@ class RecordReader:
         ```
     """
     
-    def __init__(self, path: str, corruption_strategy=None):
+    def __init__(self, path: PathType, corruption_strategy=None):
         """
         Create a new RecordReader that reads from the specified path.
         
         Args:
-            path: Path to the input file
+            path: Path to the input file. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
             corruption_strategy: Strategy to handle corrupt records:
                 - None or CorruptionStrategy.ERROR: Return an error on corruption (default)
                 - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue reading.
@@ -197,8 +215,11 @@ class RecordReader:
             
         Raises:
             IOError: If the file cannot be opened
+            TypeError: If the path cannot be converted to a string
         """
-        self._reader = PyRecordReader(path, corruption_strategy)
+        # Convert path to string in Python before passing to Rust
+        path_str = str(path)
+        self._reader = PyRecordReader(path_str, corruption_strategy)
     
     def next_record(self) -> Optional[Bytes]:
         """
@@ -266,8 +287,9 @@ class MultiThreadedWriter:
     Example:
         ```python
         from pisky import MultiThreadedWriter
+        from pathlib import Path
         
-        # Using a context manager (recommended)
+        # Using a string path
         with MultiThreadedWriter.new_with_shards(
             dir_path="/tmp/output",
             prefix="shard",
@@ -277,12 +299,23 @@ class MultiThreadedWriter:
         ) as writer:
             for i in range(1000):
                 writer.write_record(f"Record #{i}".encode('utf-8'))
+                
+        # Using a pathlib.Path
+        output_dir = Path("/tmp/pathlib_output")
+        output_dir.mkdir(exist_ok=True)
+        with MultiThreadedWriter.new_with_shards(
+            dir_path=output_dir,
+            prefix="shard",
+            num_shards=2
+        ) as writer:
+            for i in range(100):
+                writer.write_record(f"Path Record #{i}".encode('utf-8'))
         ```
     """
     
     @staticmethod
     def new_with_shards(
-        dir_path: str, 
+        dir_path: PathType, 
         prefix: str = "shard", 
         num_shards: int = 2, 
         worker_threads: Optional[int] = None,
@@ -295,7 +328,8 @@ class MultiThreadedWriter:
         Create a new MultiThreadedWriter that writes to multiple sharded files.
         
         Args:
-            dir_path: Directory path for the output files
+            dir_path: Directory path for the output files. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
             prefix: Prefix for shard file names (default: "shard")
             num_shards: Number of shards to create (default: 2)
             worker_threads: Number of worker threads to use (default: auto)
@@ -309,9 +343,12 @@ class MultiThreadedWriter:
             
         Raises:
             IOError: If the writer cannot be created
+            TypeError: If the path cannot be converted to a string
         """
+        # Convert dir_path to string in Python before passing to Rust
+        dir_path_str = str(dir_path)
         writer = PyMultiThreadedWriter.new_with_shards(
-            dir_path, 
+            dir_path_str, 
             prefix, 
             num_shards, 
             worker_threads,
@@ -425,8 +462,9 @@ class MultiThreadedReader:
     Example:
         ```python
         from pisky import MultiThreadedReader, CorruptionStrategy
+        from pathlib import Path
         
-        # Using a context manager and iterator interface with default settings
+        # Using a string path with default settings
         with MultiThreadedReader.new_with_shards(
             dir_path="/tmp/output"
         ) as reader:
@@ -435,9 +473,10 @@ class MultiThreadedReader:
                 python_bytes = record.to_bytes()
                 print(f"Record: {python_bytes.decode('utf-8')}")
                 
-        # Or with custom settings including corruption recovery
+        # Using a pathlib.Path with custom settings including corruption recovery
+        input_dir = Path("/tmp/custom")
         with MultiThreadedReader.new_with_shards(
-            dir_path="/tmp/custom",
+            dir_path=input_dir,
             prefix="custom_shard",
             num_shards=4,
             worker_threads=4,
@@ -451,7 +490,7 @@ class MultiThreadedReader:
     
     @staticmethod
     def new_with_shards(
-        dir_path: str, 
+        dir_path: PathType, 
         prefix: str = "shard", 
         num_shards: int = 2, 
         worker_threads: int = 1,
@@ -462,7 +501,8 @@ class MultiThreadedReader:
         Create a new MultiThreadedReader that reads from multiple sharded files.
         
         Args:
-            dir_path: Directory path for the input files
+            dir_path: Directory path for the input files. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
             prefix: Prefix for shard file names (default: "shard")
             num_shards: Number of shards to read from (default: 2)
             worker_threads: Number of worker threads to use (default: 1)
@@ -478,9 +518,12 @@ class MultiThreadedReader:
             
         Raises:
             IOError: If the reader cannot be created
+            TypeError: If the path cannot be converted to a string
         """
+        # Convert dir_path to string in Python before passing to Rust
+        dir_path_str = str(dir_path)
         reader = PyMultiThreadedReader.new_with_shards(
-            dir_path, 
+            dir_path_str, 
             prefix, 
             num_shards, 
             worker_threads,
