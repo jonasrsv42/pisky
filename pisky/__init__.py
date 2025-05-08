@@ -485,6 +485,29 @@ class MultiThreadedReader:
         ) as reader:
             for record in reader:
                 print(f"Record: {record.to_bytes().decode('utf-8')}")
+                
+        # Using explicit shard paths
+        shard_paths = ["/tmp/shards/shard_001.disky", "/tmp/shards/shard_002.disky"]
+        with MultiThreadedReader.new_with_shard_paths(
+            shard_paths=shard_paths,
+            num_shards=2,
+            worker_threads=2
+        ) as reader:
+            for record in reader:
+                print(f"Record: {record.to_bytes().decode('utf-8')}")
+                
+        # Using random shard paths (reads indefinitely in random order)
+        training_shards = [f"/tmp/training/shard_{i:03d}.disky" for i in range(100)]
+        with MultiThreadedReader.new_with_random_shard_paths(
+            shard_paths=training_shards,
+            num_shards=4,
+            worker_threads=4
+        ) as reader:
+            # This will read indefinitely, reshuffling each time all shards are processed
+            for i, record in enumerate(reader):
+                if i >= 1000000:  # process 1M examples then stop
+                    break
+                process_training_example(record)
         ```
     """
     
@@ -526,6 +549,99 @@ class MultiThreadedReader:
             dir_path_str, 
             prefix, 
             num_shards, 
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy
+        )
+        return MultiThreadedReader(reader)
+    
+    @staticmethod
+    def new_with_shard_paths(
+        shard_paths: List[PathType],
+        num_shards: int = 2,
+        worker_threads: int = 1,
+        queue_size_mb: int = 10 * 1024,  # 10 GB in MB
+        corruption_strategy = None
+    ) -> "MultiThreadedReader":
+        """
+        Create a new MultiThreadedReader that reads from specific shard paths.
+        
+        This method allows you to directly specify the paths to each shard file
+        rather than using a directory and a glob pattern.
+        
+        Args:
+            shard_paths: List of paths to shard files. Each path can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
+            num_shards: Number of shards to read in parallel (default: 2)
+            worker_threads: Number of worker threads to use (default: 1)
+            queue_size_mb: Size of the queue in megabytes (default: 10 GB)
+            corruption_strategy: Strategy to handle corrupt records:
+                - None or CorruptionStrategy.ERROR: Return an error on corruption (default)
+                - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue reading.
+                  A chunk is a collection of records (typically about 1MB of data),
+                  so this setting will drop all records in a corrupted chunk.
+            
+        Returns:
+            A new MultiThreadedReader instance
+            
+        Raises:
+            IOError: If the reader cannot be created or if the shards cannot be opened
+            TypeError: If a path cannot be converted to a string
+        """
+        # Convert each path to string
+        path_strs = [str(path) for path in shard_paths]
+        reader = PyMultiThreadedReader.new_with_shard_paths(
+            path_strs,
+            num_shards,
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy
+        )
+        return MultiThreadedReader(reader)
+    
+    @staticmethod
+    def new_with_random_shard_paths(
+        shard_paths: List[PathType],
+        num_shards: int = 2,
+        worker_threads: int = 1,
+        queue_size_mb: int = 10 * 1024,  # 10 GB in MB
+        corruption_strategy = None
+    ) -> "MultiThreadedReader":
+        """
+        Create a new MultiThreadedReader that reads from shard paths in random order indefinitely.
+        
+        This method creates a reader that:
+        1. Reads shards in a randomized order
+        2. Repeats reading shards indefinitely (will never reach EOF)
+        3. Reshuffles the order each time all shards have been processed
+        
+        This is particularly useful for ML training where random sampling and repeated 
+        passes over the data are desired.
+        
+        Args:
+            shard_paths: List of paths to shard files. Each path can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
+            num_shards: Number of shards to read in parallel (default: 2)
+            worker_threads: Number of worker threads to use (default: 1)
+            queue_size_mb: Size of the queue in megabytes (default: 10 GB)
+            corruption_strategy: Strategy to handle corrupt records:
+                - None or CorruptionStrategy.ERROR: Return an error on corruption (default)
+                - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue reading.
+                  A chunk is a collection of records (typically about 1MB of data),
+                  so this setting will drop all records in a corrupted chunk.
+            
+        Returns:
+            A new MultiThreadedReader instance that reads shards randomly and indefinitely
+            
+        Raises:
+            IOError: If the reader cannot be created or if the shards cannot be opened
+            TypeError: If a path cannot be converted to a string
+        """
+        # Convert each path to string
+        path_strs = [str(path) for path in shard_paths]
+        reader = PyMultiThreadedReader.new_with_random_shard_paths(
+            path_strs,
+            num_shards,
             worker_threads,
             queue_size_mb,
             corruption_strategy

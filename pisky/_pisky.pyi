@@ -217,7 +217,88 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
         worker_threads: Optional[int] = None,
         queue_size_mb: Optional[int] = None,
         corruption_strategy: Optional[PyCorruptionStrategy] = None
-    ) -> "PyMultiThreadedReader": ...
+    ) -> "PyMultiThreadedReader": 
+        """
+        Create a new PyMultiThreadedReader that reads from sharded files in a directory.
+        
+        Args:
+            dir_path: Directory containing the sharded files
+            prefix: File prefix for the shards
+            num_shards: Number of shards to read in parallel
+            worker_threads: Number of worker threads (default: number of CPU cores)
+            queue_size_mb: Size of the internal record queue in MB (default: 8)
+            corruption_strategy: Strategy to handle corrupted records
+            
+        Returns:
+            A new PyMultiThreadedReader instance
+            
+        Raises:
+            IOError: If the shards cannot be located or opened
+        """
+        ...
+    
+    @staticmethod
+    def new_with_shard_paths(
+        shard_paths: list[PathType],
+        num_shards: int = 2,
+        worker_threads: Optional[int] = None,
+        queue_size_mb: Optional[int] = None,
+        corruption_strategy: Optional[PyCorruptionStrategy] = None
+    ) -> "PyMultiThreadedReader":
+        """
+        Create a new PyMultiThreadedReader that reads from specific shard paths.
+        
+        This method allows directly specifying the paths to each shard file rather
+        than using a directory and a glob pattern.
+        
+        Args:
+            shard_paths: List of paths to shard files
+            num_shards: Number of shards to read in parallel
+            worker_threads: Number of worker threads (default: number of CPU cores)
+            queue_size_mb: Size of the internal record queue in MB (default: 8)
+            corruption_strategy: Strategy to handle corrupted records
+            
+        Returns:
+            A new PyMultiThreadedReader instance
+            
+        Raises:
+            IOError: If the shards cannot be located or opened
+        """
+        ...
+    
+    @staticmethod
+    def new_with_random_shard_paths(
+        shard_paths: list[PathType],
+        num_shards: int = 2,
+        worker_threads: Optional[int] = None,
+        queue_size_mb: Optional[int] = None,
+        corruption_strategy: Optional[PyCorruptionStrategy] = None
+    ) -> "PyMultiThreadedReader":
+        """
+        Create a new PyMultiThreadedReader that reads from shard paths in random order indefinitely.
+        
+        This method creates a reader that:
+        1. Reads shards in a randomized order
+        2. Repeats reading shards indefinitely (will never reach EOF)
+        3. Reshuffles the order each time all shards have been processed
+        
+        This is particularly useful for ML training where random sampling and repeated 
+        passes over the data are desired.
+        
+        Args:
+            shard_paths: List of paths to shard files
+            num_shards: Number of shards to read in parallel
+            worker_threads: Number of worker threads (default: number of CPU cores)
+            queue_size_mb: Size of the internal record queue in MB (default: 8)
+            corruption_strategy: Strategy to handle corrupted records
+            
+        Returns:
+            A new PyMultiThreadedReader instance that reads shards randomly and indefinitely
+            
+        Raises:
+            IOError: If the shards cannot be located or opened
+        """
+        ...
     
     def next_record(self) -> Optional[Bytes]: ...
     def close(self) -> None: ...

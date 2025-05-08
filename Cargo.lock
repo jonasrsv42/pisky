@@ -32,7 +32,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "disky"
 version = "0.1.0"
-source = "git+ssh://git@github.com/jonasrsv42/disky#b18a8349bf6b2d05f9f6fa941222da938ff67d79"
+source = "git+ssh://git@github.com/jonasrsv42/disky#5b7a121182b5da0e4a853e27585d4d440124195e"
 dependencies = [
  "bytes",
  "env_logger",
@@ -81,9 +81,9 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hermit-abi"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbd780fe5cc30f81464441920d82ac8740e2e46b29a6fad543ddd075229ce37e"
+checksum = "f154ce46856750ed433c8649605bf7ed2de3bc35fd9d2a9f30cddd873c80cb08"
 
 [[package]]
 name = "highway"

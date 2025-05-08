@@ -1,10 +1,10 @@
 use bytes::Bytes;
+use env_logger;
+use log::LevelFilter;
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use env_logger;
-use log::LevelFilter;
 
 use disky::reader::{DiskyPiece, RecordReader};
 use disky::writer::RecordWriter;
@@ -14,7 +14,10 @@ use disky::parallel::multi_threaded_writer::{MultiThreadedWriter, MultiThreadedW
 use disky::parallel::reader::{
     DiskyParallelPiece, ParallelReaderConfig, ShardingConfig as ReaderShardingConfig,
 };
-use disky::parallel::sharding::{FileShardLocator, FileSharder, FileSharderConfig};
+use disky::parallel::sharding::{
+    FileShardLocator, FileSharder, FileSharderConfig, MultiPathShardLocator,
+    RandomMultiPathShardLocator, ShardLocator,
+};
 use disky::parallel::writer::{ParallelWriterConfig, ShardingConfig as WriterShardingConfig};
 
 #[pyclass]
@@ -82,13 +85,14 @@ impl PyRecordReader {
     #[new]
     fn new(path: &str, corruption_strategy: Option<PyCorruptionStrategy>) -> PyResult<Self> {
         let file = File::open(Path::new(path)).map_err(|e| PyIOError::new_err(e.to_string()))?;
-        
+
         let reader = match corruption_strategy {
             Some(PyCorruptionStrategy::Recover) => {
                 let config = disky::reader::RecordReaderConfig::default()
                     .with_corruption_strategy(disky::reader::CorruptionStrategy::Recover);
-                RecordReader::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
-            },
+                RecordReader::with_config(file, config)
+                    .map_err(|e| PyIOError::new_err(e.to_string()))?
+            }
             _ => RecordReader::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?,
         };
 
@@ -255,6 +259,66 @@ impl PyMultiThreadedWriter {
     }
 }
 
+/// Helper function to create a MultiThreadedReader from a shard locator
+fn create_multi_threaded_reader<ShardLocatorType>(
+    shard_locator: ShardLocatorType,
+    num_shards: usize,
+    worker_threads: Option<usize>,
+    queue_size_mb: Option<usize>,
+    corruption_strategy: Option<PyCorruptionStrategy>,
+) -> PyResult<MultiThreadedReader<File>>
+where
+    ShardLocatorType: ShardLocator<File> + 'static + Send + Sync,
+{
+    // Create the parallel reader configuration with corruption strategy if specified
+    let mut parallel_reader_config = ParallelReaderConfig::default();
+
+    // Set corruption strategy if specified
+    if let Some(PyCorruptionStrategy::Recover) = corruption_strategy {
+        // Update the reader_config with the corruption strategy
+        let reader_config = parallel_reader_config
+            .reader_config
+            .with_corruption_strategy(disky::reader::CorruptionStrategy::Recover);
+        parallel_reader_config.reader_config = reader_config;
+    }
+
+    // Create the reader configuration
+    let config = match (worker_threads, queue_size_mb) {
+        (Some(threads), Some(queue_mb)) => {
+            MultiThreadedReaderConfig {
+                reader_config: parallel_reader_config,
+                worker_threads: threads,
+                queue_size_bytes: queue_mb * 1024 * 1024, // Convert MB to bytes
+            }
+        }
+        (Some(threads), None) => {
+            MultiThreadedReaderConfig {
+                reader_config: parallel_reader_config,
+                worker_threads: threads,
+                queue_size_bytes: 8 * 1024 * 1024, // Default 8MB
+            }
+        }
+        (None, Some(queue_mb)) => {
+            MultiThreadedReaderConfig {
+                reader_config: parallel_reader_config,
+                worker_threads: MultiThreadedReaderConfig::default().worker_threads,
+                queue_size_bytes: queue_mb * 1024 * 1024, // Convert MB to bytes
+            }
+        }
+        (None, None) => {
+            let mut config = MultiThreadedReaderConfig::default();
+            config.reader_config = parallel_reader_config;
+            config
+        }
+    };
+
+    // Configure the sharding
+    let sharding_config = ReaderShardingConfig::new(Box::new(shard_locator), num_shards);
+
+    // Create the multi-threaded reader
+    MultiThreadedReader::new(sharding_config, config).map_err(|e| PyIOError::new_err(e.to_string()))
+}
+
 #[pyclass]
 struct PyMultiThreadedReader {
     reader: MultiThreadedReader<File>,
@@ -275,53 +339,70 @@ impl PyMultiThreadedReader {
         let shard_locator = FileShardLocator::new(PathBuf::from(dir_path), prefix)
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
 
-        // Configure the sharding
-        let sharding_config = ReaderShardingConfig::new(Box::new(shard_locator), num_shards);
+        // Create the multi-threaded reader
+        let reader = create_multi_threaded_reader(
+            shard_locator,
+            num_shards,
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy,
+        )?;
 
-        // Create the parallel reader configuration with corruption strategy if specified
-        let mut parallel_reader_config = ParallelReaderConfig::default();
-        
-        // Set corruption strategy if specified
-        if let Some(PyCorruptionStrategy::Recover) = corruption_strategy {
-            // Update the reader_config with the corruption strategy
-            let reader_config = parallel_reader_config.reader_config
-                .with_corruption_strategy(disky::reader::CorruptionStrategy::Recover);
-            parallel_reader_config.reader_config = reader_config;
-        }
+        Ok(Self { reader })
+    }
 
-        // Create the reader configuration
-        let config = match (worker_threads, queue_size_mb) {
-            (Some(threads), Some(queue_mb)) => {
-                MultiThreadedReaderConfig {
-                    reader_config: parallel_reader_config,
-                    worker_threads: threads,
-                    queue_size_bytes: queue_mb * 1024 * 1024, // Convert MB to bytes
-                }
-            }
-            (Some(threads), None) => {
-                MultiThreadedReaderConfig {
-                    reader_config: parallel_reader_config,
-                    worker_threads: threads,
-                    queue_size_bytes: 8 * 1024 * 1024, // Default 8MB
-                }
-            }
-            (None, Some(queue_mb)) => {
-                MultiThreadedReaderConfig {
-                    reader_config: parallel_reader_config,
-                    worker_threads: MultiThreadedReaderConfig::default().worker_threads,
-                    queue_size_bytes: queue_mb * 1024 * 1024, // Convert MB to bytes
-                }
-            }
-            (None, None) => {
-                let mut config = MultiThreadedReaderConfig::default();
-                config.reader_config = parallel_reader_config;
-                config
-            },
-        };
+    #[staticmethod]
+    fn new_with_shard_paths(
+        shard_paths: Vec<String>,
+        num_shards: usize,
+        worker_threads: Option<usize>,
+        queue_size_mb: Option<usize>,
+        corruption_strategy: Option<PyCorruptionStrategy>,
+    ) -> PyResult<Self> {
+        // Convert Vec<String> to Vec<PathBuf>
+        let path_bufs: Vec<PathBuf> = shard_paths.into_iter().map(|s| PathBuf::from(s)).collect();
+
+        // Create a MultiPathShardLocator with the shard paths
+        let shard_locator =
+            MultiPathShardLocator::new(path_bufs).map_err(|e| PyIOError::new_err(e.to_string()))?;
 
         // Create the multi-threaded reader
-        let reader = MultiThreadedReader::new(sharding_config, config)
+        let reader = create_multi_threaded_reader(
+            shard_locator,
+            num_shards,
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy,
+        )?;
+
+        Ok(Self { reader })
+    }
+
+    #[staticmethod]
+    fn new_with_random_shard_paths(
+        shard_paths: Vec<String>,
+        num_shards: usize,
+        worker_threads: Option<usize>,
+        queue_size_mb: Option<usize>,
+        corruption_strategy: Option<PyCorruptionStrategy>,
+    ) -> PyResult<Self> {
+        // Convert Vec<String> to Vec<PathBuf>
+        let path_bufs: Vec<PathBuf> = shard_paths.into_iter().map(|s| PathBuf::from(s)).collect();
+
+        // Create a RandomMultiPathShardLocator with the shard paths
+        // This will read shards in a randomized order, repeating indefinitely and reshuffling
+        // after each complete pass through all the shards
+        let shard_locator = RandomMultiPathShardLocator::new(path_bufs)
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
+
+        // Create the multi-threaded reader
+        let reader = create_multi_threaded_reader(
+            shard_locator,
+            num_shards,
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy,
+        )?;
 
         Ok(Self { reader })
     }
@@ -414,7 +495,7 @@ fn init_logger(level: LevelFilter) {
 fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Initialize logger with info level by default
     init_logger(LevelFilter::Info);
-    
+
     m.add_class::<PyRecordWriter>()?;
     m.add_class::<PyRecordReader>()?;
     m.add_class::<PyMultiThreadedWriter>()?;
@@ -438,7 +519,7 @@ fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 )))
             }
         };
-        
+
         init_logger(level);
         Ok(())
     }
