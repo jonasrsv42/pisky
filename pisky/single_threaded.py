@@ -205,6 +205,9 @@ class RecordReader:
         """
         Count the number of records in a file without loading the full contents into memory.
         
+        This method efficiently iterates through the file, counting records while minimizing
+        memory usage by not storing the actual record data.
+        
         Args:
             path: Path to the input file. Can be a string, pathlib.Path,
                 or any object that can be converted to a string path.

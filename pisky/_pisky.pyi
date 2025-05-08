@@ -243,8 +243,9 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
         Args:
             dir_path: Directory containing the sharded files
             prefix: File prefix for the shards
-            num_shards: Number of shards to read in parallel
-            worker_threads: Number of worker threads (default: number of CPU cores)
+            num_shards: Number of shards to read in parallel. Controls how many file handles
+                are kept in the active resource pool, which impacts I/O parallelism.
+            worker_threads: Number of worker threads (default: 1)
             queue_size_mb: Size of the internal record queue in MB (default: 8)
             corruption_strategy: Strategy to handle corrupted records
             
@@ -271,8 +272,9 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
         Args:
             dir_path: Directory containing the sharded files
             prefix: File prefix for the shards
-            num_shards: Number of shards to read in parallel
-            worker_threads: Number of worker threads (default: number of CPU cores)
+            num_shards: Number of shards to read in parallel. Controls how many file handles
+                are kept in the active resource pool, which impacts I/O parallelism.
+            worker_threads: Number of worker threads (default: 1)
             queue_size_mb: Size of the internal record queue in MB (default: 8)
             corruption_strategy: Strategy to handle corrupted records
             
@@ -300,8 +302,10 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
         
         Args:
             shard_paths: List of paths to shard files
-            num_shards: Number of shards to read in parallel
-            worker_threads: Number of worker threads (default: number of CPU cores)
+            num_shards: Number of shards to read in parallel. Controls how many file handles
+                are kept in the active resource pool, which impacts I/O parallelism. Can be
+                different from the total number of shard files in shard_paths.
+            worker_threads: Number of worker threads (default: 1)
             queue_size_mb: Size of the internal record queue in MB (default: 8)
             corruption_strategy: Strategy to handle corrupted records
             
@@ -326,8 +330,10 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
         
         Args:
             shard_paths: List of paths to shard files
-            num_shards: Number of shards to read in parallel
-            worker_threads: Number of worker threads (default: number of CPU cores)
+            num_shards: Number of shards to read in parallel. Controls how many file handles
+                are kept in the active resource pool, which impacts I/O parallelism. Can be
+                different from the total number of shard files in shard_paths.
+            worker_threads: Number of worker threads (default: 1)
             queue_size_mb: Size of the internal record queue in MB (default: 8)
             corruption_strategy: Strategy to handle corrupted records
             
@@ -360,8 +366,10 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
         
         Args:
             shard_paths: List of paths to shard files
-            num_shards: Number of shards to read in parallel
-            worker_threads: Number of worker threads (default: number of CPU cores)
+            num_shards: Number of shards to read in parallel. Controls how many file handles
+                are kept in the active resource pool, which impacts I/O parallelism. Can be
+                different from the total number of shard files in shard_paths.
+            worker_threads: Number of worker threads (default: 1)
             queue_size_mb: Size of the internal record queue in MB (default: 8)
             corruption_strategy: Strategy to handle corrupted records
             

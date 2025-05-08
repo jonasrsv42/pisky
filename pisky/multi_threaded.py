@@ -92,7 +92,8 @@ class MultiThreadedWriter:
             dir_path: Directory path for the output files. Can be a string, pathlib.Path,
                 or any object that can be converted to a string path.
             prefix: Prefix for shard file names (default: "shard")
-            num_shards: Number of shards to create (default: 2)
+            num_shards: Number of shards to create and manage in the active resource pool (default: 2).
+                This controls how many file handles are maintained concurrently.
             worker_threads: Number of worker threads to use (default: auto)
             max_bytes_per_writer: Maximum bytes per writer (default: 10 GB)
             task_queue_capacity: Capacity of the task queue (default: 2000)
@@ -287,7 +288,9 @@ class MultiThreadedReader:
             dir_path: Directory path for the input files. Can be a string, pathlib.Path,
                 or any object that can be converted to a string path.
             prefix: Prefix for shard file names (default: "shard")
-            num_shards: Number of shards to read from (default: 2)
+            num_shards: Number of shards to read from concurrently (default: 2).
+                This controls how many file handles are kept open in the active resource pool,
+                which impacts I/O parallelism and memory usage.
             worker_threads: Number of worker threads to use (default: 1)
             queue_size_mb: Size of the queue in megabytes (default: 10 GB)
             corruption_strategy: Strategy to handle corrupt records:
@@ -332,7 +335,10 @@ class MultiThreadedReader:
         Args:
             shard_paths: List of paths to shard files. Each path can be a string, pathlib.Path,
                 or any object that can be converted to a string path.
-            num_shards: Number of shards to read in parallel (default: 2)
+            num_shards: Number of shards to read in parallel (default: 2).
+                This controls how many file handles are kept open in the active resource pool,
+                which impacts I/O parallelism and memory usage. Note that this can be different
+                from the total number of shard files in shard_paths.
             worker_threads: Number of worker threads to use (default: 1)
             queue_size_mb: Size of the queue in megabytes (default: 10 GB)
             corruption_strategy: Strategy to handle corrupt records:
@@ -381,7 +387,10 @@ class MultiThreadedReader:
         Args:
             shard_paths: List of paths to shard files. Each path can be a string, pathlib.Path,
                 or any object that can be converted to a string path.
-            num_shards: Number of shards to read in parallel (default: 2)
+            num_shards: Number of shards to read in parallel (default: 2).
+                This controls how many file handles are kept open in the active resource pool,
+                which impacts I/O parallelism and memory usage. Note that this can be different
+                from the total number of shard files in shard_paths.
             worker_threads: Number of worker threads to use (default: 1)
             queue_size_mb: Size of the queue in megabytes (default: 10 GB)
             corruption_strategy: Strategy to handle corrupt records:
@@ -426,7 +435,9 @@ class MultiThreadedReader:
             dir_path: Directory path for the input files. Can be a string, pathlib.Path,
                 or any object that can be converted to a string path.
             prefix: Prefix for shard file names (default: "shard")
-            num_shards: Number of shards to read in parallel (default: 2)
+            num_shards: Number of shards to read in parallel (default: 2).
+                This controls how many file handles are kept open in the active resource pool,
+                which impacts I/O parallelism and memory usage.
             worker_threads: Number of worker threads to use (default: 1)
             queue_size_mb: Size of the queue in megabytes (default: 10 GB)
             corruption_strategy: Strategy to handle corrupt records:
@@ -469,7 +480,10 @@ class MultiThreadedReader:
         Args:
             shard_paths: List of paths to shard files. Each path can be a string, pathlib.Path,
                 or any object that can be converted to a string path.
-            num_shards: Number of shards to read in parallel (default: 2)
+            num_shards: Number of shards to read in parallel (default: 2).
+                This controls how many file handles are kept open in the active resource pool,
+                which impacts I/O parallelism and memory usage. Note that this can be different
+                from the total number of shard files in shard_paths.
             worker_threads: Number of worker threads to use (default: 1)
             queue_size_mb: Size of the queue in megabytes (default: 10 GB)
             corruption_strategy: Strategy to handle corrupt records:
