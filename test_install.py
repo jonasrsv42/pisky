@@ -26,6 +26,10 @@ try:
     with RecordReader(temp_path) as reader:
         records = [record.to_bytes() for record in reader]
         print("✅ Successfully read records:", records)
+
+
+    
+    print("✅ Successfully counted records:", RecordReader.count_records(temp_path))
     
     # Clean up
     os.unlink(temp_path)
