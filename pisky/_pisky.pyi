@@ -148,6 +148,25 @@ class PyRecordReader(Iterator[Bytes]):
         """
         ...
     
+    @staticmethod
+    def count_records(path: PathType, corruption_strategy: Optional[PyCorruptionStrategy] = None) -> int:
+        """
+        Count the number of records in a file without loading the full contents into memory.
+        
+        Args:
+            path: Path to the input file. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
+            corruption_strategy: Strategy to handle corrupted records
+            
+        Returns:
+            The number of records in the file
+            
+        Raises:
+            IOError: If the file cannot be opened or read
+            TypeError: If the path cannot be converted to a string
+        """
+        ...
+    
     def next_record(self) -> Optional[Bytes]:
         """
         Read the next record from the file.

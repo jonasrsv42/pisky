@@ -168,6 +168,14 @@ class RecordReader:
                 print(f"Record: {record.to_bytes().decode('utf-8')}")
         finally:
             reader.close()
+            
+        # Count records in a file
+        count = RecordReader.count_records("input.disky")
+        print(f"File contains {count} records")
+        
+        # Count records with a corruption strategy
+        count = RecordReader.count_records("input.disky", corruption_strategy=CorruptionStrategy.RECOVER)
+        print(f"File contains {count} records")
         ```
     """
     
@@ -191,6 +199,28 @@ class RecordReader:
         # Convert path to string in Python before passing to Rust
         path_str = str(path)
         self._reader = PyRecordReader(path_str, corruption_strategy)
+    
+    @staticmethod
+    def count_records(path: PathType, corruption_strategy=None) -> int:
+        """
+        Count the number of records in a file without loading the full contents into memory.
+        
+        Args:
+            path: Path to the input file. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
+            corruption_strategy: Strategy to handle corrupt records:
+                - None or CorruptionStrategy.ERROR: Return an error on corruption (default)
+                - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue reading.
+                  
+        Returns:
+            The number of records in the file
+            
+        Raises:
+            IOError: If the file cannot be opened or read
+            TypeError: If the path cannot be converted to a string
+        """
+        path_str = str(path)
+        return PyRecordReader.count_records(path_str, corruption_strategy)
     
     def next_record(self) -> Optional[Bytes]:
         """

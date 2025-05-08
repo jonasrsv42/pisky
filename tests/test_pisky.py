@@ -9,7 +9,7 @@ These tests verify that:
 import os
 import tempfile
 import pytest
-from pisky import RecordWriter, RecordReader, MultiThreadedWriter, MultiThreadedReader
+from pisky import RecordWriter, RecordReader, MultiThreadedWriter, MultiThreadedReader, CorruptionStrategy
 
 
 class TestSingleThreaded:
@@ -70,6 +70,63 @@ class TestSingleThreaded:
             assert len(records) == 2
             assert records[0] == b"Manual 1"
             assert records[1] == b"Manual 2"
+
+        finally:
+            # Clean up
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+                
+    def test_count_records(self):
+        """Test counting records using the static count_records method."""
+        with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
+            temp_path = temp.name
+
+        try:
+            # Write a variable number of records
+            num_records = 100
+            with RecordWriter(temp_path) as writer:
+                for i in range(num_records):
+                    writer.write_record(f"Count Record {i}".encode())
+
+            # Count records without loading them all into memory
+            count = RecordReader.count_records(temp_path)
+            assert count == num_records
+            
+            # Verify by reading and counting records manually
+            records = []
+            with RecordReader(temp_path) as reader:
+                for record in reader:
+                    records.append(record.to_bytes())
+            
+            assert len(records) == num_records
+            assert count == len(records)
+
+        finally:
+            # Clean up
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+    
+    def test_count_records_empty_file(self):
+        """Test counting records on an empty file."""
+        with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
+            temp_path = temp.name
+
+        try:
+            # Create an empty file with no records
+            with RecordWriter(temp_path) as writer:
+                pass  # Don't write any records
+            
+            # Count records
+            count = RecordReader.count_records(temp_path)
+            assert count == 0
+            
+            # Verify by reading
+            records = []
+            with RecordReader(temp_path) as reader:
+                for record in reader:
+                    records.append(record.to_bytes())
+            
+            assert len(records) == 0
 
         finally:
             # Clean up

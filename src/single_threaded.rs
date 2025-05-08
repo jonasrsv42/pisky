@@ -82,6 +82,32 @@ impl PyRecordReader {
         Ok(Self { reader })
     }
 
+    /// Count the number of records in the file
+    #[staticmethod]
+    fn count_records(path: &str, corruption_strategy: Option<PyCorruptionStrategy>) -> PyResult<usize> {
+        let file = File::open(Path::new(path)).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        
+        let mut reader = match corruption_strategy {
+            Some(PyCorruptionStrategy::Recover) => {
+                let config = disky::reader::RecordReaderConfig::default()
+                    .with_corruption_strategy(disky::reader::CorruptionStrategy::Recover);
+                RecordReader::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
+            },
+            _ => RecordReader::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?,
+        };
+
+        let mut count = 0;
+        loop {
+            match reader.next_record() {
+                Ok(DiskyPiece::Record(_)) => count += 1,
+                Ok(DiskyPiece::EOF) => break,
+                Err(e) => return Err(PyIOError::new_err(e.to_string())),
+            }
+        }
+
+        Ok(count)
+    }
+
     fn next_record(&mut self) -> PyResult<Option<pyo3_bytes::PyBytes>> {
         match self.reader.next_record() {
             Ok(DiskyPiece::Record(bytes)) => {
