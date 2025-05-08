@@ -167,6 +167,33 @@ class TestMultiThreaded:
             # Check that all records start with the expected prefix
             for record in records:
                 assert record.startswith(b"MT Record")
+                
+            # Test counting records without loading them all into memory
+            record_count = MultiThreadedReader.count_records_with_shards(
+                dir_path=temp_dir,
+                # Using all default settings
+            )
+            assert record_count == 100
+            
+            # Get the full shard paths
+            full_shard_paths = [os.path.join(temp_dir, shard) for shard in shard_files]
+            
+            # Test counting records with specific shard paths
+            record_count_paths = MultiThreadedReader.count_records_with_shard_paths(
+                shard_paths=full_shard_paths,
+                # Using all default settings
+            )
+            assert record_count_paths == 100
+            
+            # Test with corruption recovery strategy
+            record_count_recover = MultiThreadedReader.count_records_with_shards(
+                dir_path=temp_dir,
+                corruption_strategy=CorruptionStrategy.RECOVER
+            )
+            assert record_count_recover == 100
+            
+            # Counts should be the same with or without recovery strategy for non-corrupted files
+            assert record_count == record_count_recover
 
     def test_mt_custom_settings(self):
         """Test multi-threaded API with custom settings."""

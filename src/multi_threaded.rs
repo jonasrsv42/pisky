@@ -186,6 +186,45 @@ impl PyMultiThreadedReader {
         Ok(Self { reader })
     }
     
+    /// Count the number of records in a directory with sharded files
+    #[staticmethod]
+    fn count_records_with_shards(
+        dir_path: &str,
+        prefix: &str,
+        num_shards: usize,
+        worker_threads: Option<usize>,
+        queue_size_mb: Option<usize>,
+        corruption_strategy: Option<PyCorruptionStrategy>,
+    ) -> PyResult<usize> {
+        // Create a FileShardLocator for the sharded files
+        let shard_locator = FileShardLocator::new(PathBuf::from(dir_path), prefix)
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+
+        // Create the multi-threaded reader
+        let reader = create_multi_threaded_reader(
+            shard_locator,
+            num_shards,
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy,
+        )?;
+
+        let mut count = 0;
+        loop {
+            match reader.read() {
+                Ok(DiskyParallelPiece::Record(_)) => count += 1,
+                Ok(DiskyParallelPiece::EOF) => break,
+                Ok(DiskyParallelPiece::ShardFinished) => continue, // Skip shard finished markers
+                Err(e) => return Err(PyIOError::new_err(e.to_string())),
+            }
+        }
+
+        // Close the reader explicitly
+        reader.close().map_err(|e| PyIOError::new_err(e.to_string()))?;
+
+        Ok(count)
+    }
+    
     #[staticmethod]
     fn new_with_shard_paths(
         shard_paths: Vec<String>,
@@ -211,6 +250,47 @@ impl PyMultiThreadedReader {
         )?;
 
         Ok(Self { reader })
+    }
+    
+    /// Count the number of records in a list of shard paths
+    #[staticmethod]
+    fn count_records_with_shard_paths(
+        shard_paths: Vec<String>,
+        num_shards: usize,
+        worker_threads: Option<usize>,
+        queue_size_mb: Option<usize>,
+        corruption_strategy: Option<PyCorruptionStrategy>,
+    ) -> PyResult<usize> {
+        // Convert Vec<String> to Vec<PathBuf>
+        let path_bufs = string_paths_to_pathbufs(shard_paths);
+            
+        // Create a MultiPathShardLocator with the shard paths
+        let shard_locator = MultiPathShardLocator::new(path_bufs)
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+
+        // Create the multi-threaded reader
+        let reader = create_multi_threaded_reader(
+            shard_locator,
+            num_shards,
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy,
+        )?;
+
+        let mut count = 0;
+        loop {
+            match reader.read() {
+                Ok(DiskyParallelPiece::Record(_)) => count += 1,
+                Ok(DiskyParallelPiece::EOF) => break,
+                Ok(DiskyParallelPiece::ShardFinished) => continue, // Skip shard finished markers
+                Err(e) => return Err(PyIOError::new_err(e.to_string())),
+            }
+        }
+
+        // Close the reader explicitly
+        reader.close().map_err(|e| PyIOError::new_err(e.to_string()))?;
+
+        Ok(count)
     }
     
     #[staticmethod]

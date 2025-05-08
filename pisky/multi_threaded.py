@@ -253,6 +253,21 @@ class MultiThreadedReader:
                 if i >= 1000000:  # process 1M examples then stop
                     break
                 process_training_example(record)
+                
+        # Count records in sharded files
+        count = MultiThreadedReader.count_records_with_shards(
+            dir_path="/tmp/output",
+            prefix="shard",
+            num_shards=2
+        )
+        print(f"Total records: {count}")
+        
+        # Count records in specific shard paths
+        count = MultiThreadedReader.count_records_with_shard_paths(
+            shard_paths=["/tmp/shards/shard_001.disky", "/tmp/shards/shard_002.disky"],
+            num_shards=2
+        )
+        print(f"Total records: {count}")
         ```
     """
     
@@ -392,6 +407,93 @@ class MultiThreadedReader:
             corruption_strategy
         )
         return MultiThreadedReader(reader)
+        
+    @staticmethod
+    def count_records_with_shards(
+        dir_path: PathType, 
+        prefix: str = "shard", 
+        num_shards: int = 2, 
+        worker_threads: int = 1,
+        queue_size_mb: int = 10 * 1024,  # 10 GB in MB
+        corruption_strategy = None
+    ) -> int:
+        """
+        Count the total number of records in multiple sharded files without loading them all into memory.
+        
+        This method efficiently counts records across all shards in a directory with a given prefix.
+        
+        Args:
+            dir_path: Directory path for the input files. Can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
+            prefix: Prefix for shard file names (default: "shard")
+            num_shards: Number of shards to read in parallel (default: 2)
+            worker_threads: Number of worker threads to use (default: 1)
+            queue_size_mb: Size of the queue in megabytes (default: 10 GB)
+            corruption_strategy: Strategy to handle corrupt records:
+                - None or CorruptionStrategy.ERROR: Return an error on corruption (default)
+                - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue reading.
+                  A chunk is a collection of records (typically about 1MB of data),
+                  so this setting will drop all records in a corrupted chunk.
+                  
+        Returns:
+            The total number of records across all shards
+            
+        Raises:
+            IOError: If the shards cannot be opened or read
+            TypeError: If the path cannot be converted to a string
+        """
+        # Convert dir_path to string in Python before passing to Rust
+        dir_path_str = str(dir_path)
+        return PyMultiThreadedReader.count_records_with_shards(
+            dir_path_str, 
+            prefix, 
+            num_shards, 
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy
+        )
+        
+    @staticmethod
+    def count_records_with_shard_paths(
+        shard_paths: List[PathType],
+        num_shards: int = 2,
+        worker_threads: int = 1,
+        queue_size_mb: int = 10 * 1024,  # 10 GB in MB
+        corruption_strategy = None
+    ) -> int:
+        """
+        Count the total number of records in specific shard paths without loading them all into memory.
+        
+        This method efficiently counts records across all specified shard files.
+        
+        Args:
+            shard_paths: List of paths to shard files. Each path can be a string, pathlib.Path,
+                or any object that can be converted to a string path.
+            num_shards: Number of shards to read in parallel (default: 2)
+            worker_threads: Number of worker threads to use (default: 1)
+            queue_size_mb: Size of the queue in megabytes (default: 10 GB)
+            corruption_strategy: Strategy to handle corrupt records:
+                - None or CorruptionStrategy.ERROR: Return an error on corruption (default)
+                - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue reading.
+                  A chunk is a collection of records (typically about 1MB of data),
+                  so this setting will drop all records in a corrupted chunk.
+                  
+        Returns:
+            The total number of records across all shard paths
+            
+        Raises:
+            IOError: If the shards cannot be opened or read
+            TypeError: If a path cannot be converted to a string
+        """
+        # Convert each path to string
+        path_strs = [str(path) for path in shard_paths]
+        return PyMultiThreadedReader.count_records_with_shard_paths(
+            path_strs,
+            num_shards,
+            worker_threads,
+            queue_size_mb,
+            corruption_strategy
+        )
     
     def __init__(self, reader: PyMultiThreadedReader):
         """

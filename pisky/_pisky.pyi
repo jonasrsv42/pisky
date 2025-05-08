@@ -257,6 +257,34 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
         ...
     
     @staticmethod
+    def count_records_with_shards(
+        dir_path: PathType,
+        prefix: str = "shard",
+        num_shards: int = 2,
+        worker_threads: Optional[int] = None,
+        queue_size_mb: Optional[int] = None,
+        corruption_strategy: Optional[PyCorruptionStrategy] = None
+    ) -> int:
+        """
+        Count the number of records in sharded files in a directory without loading them into memory.
+        
+        Args:
+            dir_path: Directory containing the sharded files
+            prefix: File prefix for the shards
+            num_shards: Number of shards to read in parallel
+            worker_threads: Number of worker threads (default: number of CPU cores)
+            queue_size_mb: Size of the internal record queue in MB (default: 8)
+            corruption_strategy: Strategy to handle corrupted records
+            
+        Returns:
+            The total number of records across all shards
+            
+        Raises:
+            IOError: If the shards cannot be located or opened
+        """
+        ...
+    
+    @staticmethod
     def new_with_shard_paths(
         shard_paths: list[PathType],
         num_shards: int = 2,
@@ -279,6 +307,32 @@ class PyMultiThreadedReader(Iterator[Bytes], ContextManager["PyMultiThreadedRead
             
         Returns:
             A new PyMultiThreadedReader instance
+            
+        Raises:
+            IOError: If the shards cannot be located or opened
+        """
+        ...
+    
+    @staticmethod
+    def count_records_with_shard_paths(
+        shard_paths: list[PathType],
+        num_shards: int = 2,
+        worker_threads: Optional[int] = None,
+        queue_size_mb: Optional[int] = None,
+        corruption_strategy: Optional[PyCorruptionStrategy] = None
+    ) -> int:
+        """
+        Count the number of records in specific shard paths without loading them into memory.
+        
+        Args:
+            shard_paths: List of paths to shard files
+            num_shards: Number of shards to read in parallel
+            worker_threads: Number of worker threads (default: number of CPU cores)
+            queue_size_mb: Size of the internal record queue in MB (default: 8)
+            corruption_strategy: Strategy to handle corrupted records
+            
+        Returns:
+            The total number of records across all shards
             
         Raises:
             IOError: If the shards cannot be located or opened
