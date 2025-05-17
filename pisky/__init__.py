@@ -16,6 +16,9 @@ from .single_threaded import Bytes, RecordReader, RecordWriter
 # Import MultiThreadedReader and MultiThreadedWriter from multi_threaded module
 from .multi_threaded import MultiThreadedReader, MultiThreadedWriter
 
+# Import Globable and expand_dirs from expand module
+from .expand import Globable, expand_dirs
+
 try:
     __version__ = importlib.metadata.version("pisky")
 except importlib.metadata.PackageNotFoundError:
@@ -29,8 +32,10 @@ __all__ = [
     "MultiThreadedReader",
     "Bytes", 
     "CorruptionStrategy",
+    "Globable",
     # Functions
     "set_log_level",
+    "expand_dirs",
     # Variables
     "__version__",
 ]
