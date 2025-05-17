@@ -10,6 +10,7 @@ Pisky provides Python bindings for the [Disky](https://github.com/jonasrsv42/dis
 - **Auto-sharding**: Distribute records across multiple files automatically
 - **Python-native interface**: Works with standard Python bytes and context managers
 - **Static type checking**: Full type hints with mypy support
+- **Utility functions**: Tools for working with sharded Disky files
 
 ## Installation
 
