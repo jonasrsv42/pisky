@@ -1,6 +1,6 @@
 [package]
 name = "pisky"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,8 +12,8 @@ crate-type = ["cdylib"]
 CARGO_NET_GIT_FETCH_WITH_CLI = { value = "true" }
 
 [dependencies]
-pyo3 = "0.24.0"
-pyo3-bytes = "0.2.0"
+pyo3 = "0.25.0"
+pyo3-bytes = "0.3.0"
 bytes = "1.4"
 disky = { git = "ssh://git@github.com/jonasrsv42/disky", features = ["parallel"]}
 log = "0.4"
