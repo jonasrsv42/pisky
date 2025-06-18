@@ -4,9 +4,9 @@ use pyo3::prelude::*;
 use std::fs::File;
 use std::path::Path;
 
+use disky::compression::CompressionType;
 use disky::reader::{DiskyPiece, RecordReader};
 use disky::writer::{RecordWriter, RecordWriterConfig};
-use disky::compression::CompressionType;
 
 use crate::corruption::PyCorruptionStrategy;
 
@@ -22,19 +22,24 @@ impl PyRecordWriter {
     #[pyo3(signature = (path, compression=None))]
     fn new(path: &str, compression: Option<&str>) -> PyResult<Self> {
         let file = File::create(Path::new(path)).map_err(|e| PyIOError::new_err(e.to_string()))?;
-        
+
         let writer = match compression {
             Some("zstd") => {
-                let config = RecordWriterConfig::default().with_compression(CompressionType::Zstd);
-                RecordWriter::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
-            },
+                let config = RecordWriterConfig::default().with_compression(CompressionType::Zstd(3));
+                RecordWriter::with_config(file, config)
+                    .map_err(|e| PyIOError::new_err(e.to_string()))?
+            }
             Some("none") => {
                 let config = RecordWriterConfig::default().with_compression(CompressionType::None);
-                RecordWriter::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
-            },
+                RecordWriter::with_config(file, config)
+                    .map_err(|e| PyIOError::new_err(e.to_string()))?
+            }
             Some(other) => {
-                return Err(PyIOError::new_err(format!("Unsupported compression type: '{}'. Supported types: 'zstd', 'none'", other)));
-            },
+                return Err(PyIOError::new_err(format!(
+                    "Unsupported compression type: '{}'. Supported types: 'zstd', 'none'",
+                    other
+                )));
+            }
             None => RecordWriter::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?,
         };
 
@@ -85,13 +90,14 @@ impl PyRecordReader {
     #[new]
     fn new(path: &str, corruption_strategy: Option<PyCorruptionStrategy>) -> PyResult<Self> {
         let file = File::open(Path::new(path)).map_err(|e| PyIOError::new_err(e.to_string()))?;
-        
+
         let reader = match corruption_strategy {
             Some(PyCorruptionStrategy::Recover) => {
                 let config = disky::reader::RecordReaderConfig::default()
                     .with_corruption_strategy(disky::reader::CorruptionStrategy::Recover);
-                RecordReader::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
-            },
+                RecordReader::with_config(file, config)
+                    .map_err(|e| PyIOError::new_err(e.to_string()))?
+            }
             _ => RecordReader::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?,
         };
 
@@ -100,15 +106,19 @@ impl PyRecordReader {
 
     /// Count the number of records in the file
     #[staticmethod]
-    fn count_records(path: &str, corruption_strategy: Option<PyCorruptionStrategy>) -> PyResult<usize> {
+    fn count_records(
+        path: &str,
+        corruption_strategy: Option<PyCorruptionStrategy>,
+    ) -> PyResult<usize> {
         let file = File::open(Path::new(path)).map_err(|e| PyIOError::new_err(e.to_string()))?;
-        
+
         let mut reader = match corruption_strategy {
             Some(PyCorruptionStrategy::Recover) => {
                 let config = disky::reader::RecordReaderConfig::default()
                     .with_corruption_strategy(disky::reader::CorruptionStrategy::Recover);
-                RecordReader::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
-            },
+                RecordReader::with_config(file, config)
+                    .map_err(|e| PyIOError::new_err(e.to_string()))?
+            }
             _ => RecordReader::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?,
         };
 
@@ -144,3 +154,4 @@ impl PyRecordReader {
         self.next_record()
     }
 }
+

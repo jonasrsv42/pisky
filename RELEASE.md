@@ -179,27 +179,164 @@ Make sure to replace:
 
 ### Using GitHub CLI (Recommended)
 
-1. Update version in Cargo.toml to 0.4.0
-2. Build wheels: `maturin build --release`
-3. Create a release with GitHub CLI:
+**Important**: Always create and verify tags explicitly before creating releases to ensure they point to the correct commit.
+
+1. **Update version and commit changes**:
    ```bash
-   VERSION=0.4.0
+   # Update version in Cargo.toml (e.g., to 0.6.0)
+   # Commit all your changes first
+   git add Cargo.toml  # and any other changed files
+   git commit -m "Bump version to 0.6.0 - <brief description of changes>"
+   ```
+
+2. **Create and verify the tag locally**:
+   ```bash
+   VERSION=0.6.0
+   git tag -a v$VERSION -m "Release v$VERSION"
+   
+   # CRITICAL: Verify tag points to correct commit
+   echo "Tag points to:"
+   git show v$VERSION --oneline | head -1
+   echo "Current HEAD is:"
+   git rev-parse HEAD
+   # These should match!
+   ```
+
+3. **Push the tag**:
+   ```bash
+   git push origin v$VERSION
+   ```
+
+4. **Build wheels**:
+   ```bash
+   maturin build --release
+   ```
+
+5. **Create GitHub release using existing tag**:
+   ```bash
    gh release create v$VERSION \
      --title "Pisky v$VERSION" \
      --notes "Release notes for version $VERSION:
      
-   - Update release notes here" \
+   - Add your release notes here
+   - List major changes and new features
+   - Include any breaking changes" \
      --target main
 
    # Upload wheels
-   find target/wheels -name "pisky-$VERSION-*.whl" | sort | uniq -f 2 | xargs -I{} gh release upload v$VERSION {}
+   find target/wheels -name "pisky-$VERSION-*.whl" | xargs -I{} gh release upload v$VERSION {}
    ```
-4. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.4.0/[wheel-filename].whl"`
+
+6. **Verify the release works**:
+   ```bash
+   # Test installation in a fresh environment
+   ./install_from_release.sh
+   ```
 
 ### Manual Process
 
-1. Update version in Cargo.toml to 0.4.0
-2. Build wheels: `maturin build --release`
-3. Create and push a tag: `git tag -a v0.4.0 -m "Release v0.4.0" && git push origin v0.4.0`
-4. Create a GitHub release through the web interface and upload the wheels from `target/wheels/`
-5. Verify installation works: `pip install "pisky @ https://github.com/jonasrsv42/pisky/releases/download/v0.4.0/[wheel-filename].whl"`
+1. **Update version and commit changes**:
+   ```bash
+   # Update version in Cargo.toml
+   git add Cargo.toml  # and any other changed files
+   git commit -m "Bump version to 0.6.0 - <brief description>"
+   ```
+
+2. **Create and verify the tag**:
+   ```bash
+   VERSION=0.6.0
+   git tag -a v$VERSION -m "Release v$VERSION"
+   
+   # Verify tag points to correct commit
+   git show v$VERSION --oneline | head -1
+   git rev-parse HEAD
+   # These should match!
+   ```
+
+3. **Push the tag**:
+   ```bash
+   git push origin v$VERSION
+   ```
+
+4. **Build wheels**:
+   ```bash
+   maturin build --release
+   ```
+
+5. **Create GitHub release manually**:
+   - Go to GitHub repository → Releases → "Draft a new release"
+   - Select the existing tag (v0.6.0) you just pushed
+   - Set title and add release notes
+   - Upload wheels from `target/wheels/`
+   - Publish release
+
+6. **Verify the release works**:
+   ```bash
+   ./install_from_release.sh
+   ```
+
+## Troubleshooting Common Release Issues
+
+### Issue: Tag points to wrong commit
+
+**Symptoms**: After creating a release, installing from the tag doesn't include your latest changes.
+
+**Solution**:
+1. Delete the incorrect tag locally and remotely:
+   ```bash
+   git tag -d v0.6.0
+   git push --delete origin v0.6.0
+   ```
+
+2. Delete the GitHub release:
+   ```bash
+   gh release delete v0.6.0 --yes
+   ```
+
+3. Create the tag correctly pointing to the right commit:
+   ```bash
+   git tag -a v0.6.0 -m "Release v0.6.0"
+   git push origin v0.6.0
+   ```
+
+4. Recreate the release using the existing tag.
+
+### Issue: Installation test fails with wrong version
+
+**Symptoms**: `./install_from_release.sh` shows `Successfully installed pisky-X.Y.Z` where X.Y.Z is not the expected version.
+
+**Cause**: The tag is pointing to an old commit that has a different version in `Cargo.toml`.
+
+**Solution**: Follow the steps above to fix the tag, then rebuild and re-upload wheels.
+
+### Issue: Wheel size doesn't change as expected
+
+**Symptoms**: After adding new dependencies (like zstd), the wheel size remains the same.
+
+**Cause**: Building from an old commit that doesn't include the new dependencies.
+
+**Solution**: Verify the tag points to the correct commit with all changes, then rebuild wheels.
+
+### Best Practices to Avoid Issues
+
+1. **Always verify tags before proceeding**:
+   ```bash
+   # This should show your latest commit message
+   git show v0.6.0 --oneline | head -1
+   ```
+
+2. **Test locally before releasing**:
+   ```bash
+   # Build and test in development mode first
+   maturin develop
+   python -m pytest tests/
+   ```
+
+3. **Use descriptive commit messages** for version bumps:
+   ```bash
+   git commit -m "Bump version to 0.6.0 - Add zstd compression support"
+   ```
+
+4. **Keep the install test script up to date** with new features so it catches version mismatches.
+
+5. **Double-check the release URL** in GitHub after creation to ensure it references the correct tag and commit.

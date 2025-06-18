@@ -4,13 +4,16 @@ use pyo3::prelude::*;
 use std::fs::File;
 use std::path::PathBuf;
 
+use disky::compression::CompressionType;
 use disky::parallel::multi_threaded_reader::MultiThreadedReader;
 use disky::parallel::multi_threaded_writer::{MultiThreadedWriter, MultiThreadedWriterConfig};
 use disky::parallel::reader::DiskyParallelPiece;
-use disky::parallel::sharding::{FileShardLocator, FileSharder, FileSharderConfig, MultiPathShardLocator, RandomMultiPathShardLocator};
+use disky::parallel::sharding::{
+    FileShardLocator, FileSharder, FileSharderConfig, MultiPathShardLocator,
+    RandomMultiPathShardLocator,
+};
 use disky::parallel::writer::{ParallelWriterConfig, ShardingConfig as WriterShardingConfig};
 use disky::writer::RecordWriterConfig;
-use disky::compression::CompressionType;
 
 use crate::corruption::PyCorruptionStrategy;
 use crate::shard_helpers::{create_multi_threaded_reader, string_paths_to_pathbufs};
@@ -56,11 +59,16 @@ impl PyMultiThreadedWriter {
 
         // Create record writer config with compression if specified
         let record_writer_config = match compression {
-            Some("zstd") => RecordWriterConfig::default().with_compression(CompressionType::Zstd),
+            Some("zstd") => {
+                RecordWriterConfig::default().with_compression(CompressionType::Zstd(3))
+            }
             Some("none") => RecordWriterConfig::default().with_compression(CompressionType::None),
             Some(other) => {
-                return Err(PyIOError::new_err(format!("Unsupported compression type: '{}'. Supported types: 'zstd', 'none'", other)));
-            },
+                return Err(PyIOError::new_err(format!(
+                    "Unsupported compression type: '{}'. Supported types: 'zstd', 'none'",
+                    other
+                )));
+            }
             None => RecordWriterConfig::default(),
         };
 
@@ -203,7 +211,7 @@ impl PyMultiThreadedReader {
 
         Ok(Self { reader })
     }
-    
+
     /// Count the number of records in a directory with sharded files
     #[staticmethod]
     fn count_records_with_shards(
@@ -238,11 +246,13 @@ impl PyMultiThreadedReader {
         }
 
         // Close the reader explicitly
-        reader.close().map_err(|e| PyIOError::new_err(e.to_string()))?;
+        reader
+            .close()
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
 
         Ok(count)
     }
-    
+
     #[staticmethod]
     fn new_with_shard_paths(
         shard_paths: Vec<String>,
@@ -253,10 +263,10 @@ impl PyMultiThreadedReader {
     ) -> PyResult<Self> {
         // Convert Vec<String> to Vec<PathBuf>
         let path_bufs = string_paths_to_pathbufs(shard_paths);
-            
+
         // Create a MultiPathShardLocator with the shard paths
-        let shard_locator = MultiPathShardLocator::new(path_bufs)
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let shard_locator =
+            MultiPathShardLocator::new(path_bufs).map_err(|e| PyIOError::new_err(e.to_string()))?;
 
         // Create the multi-threaded reader
         let reader = create_multi_threaded_reader(
@@ -269,7 +279,7 @@ impl PyMultiThreadedReader {
 
         Ok(Self { reader })
     }
-    
+
     /// Count the number of records in a list of shard paths
     #[staticmethod]
     fn count_records_with_shard_paths(
@@ -281,10 +291,10 @@ impl PyMultiThreadedReader {
     ) -> PyResult<usize> {
         // Convert Vec<String> to Vec<PathBuf>
         let path_bufs = string_paths_to_pathbufs(shard_paths);
-            
+
         // Create a MultiPathShardLocator with the shard paths
-        let shard_locator = MultiPathShardLocator::new(path_bufs)
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let shard_locator =
+            MultiPathShardLocator::new(path_bufs).map_err(|e| PyIOError::new_err(e.to_string()))?;
 
         // Create the multi-threaded reader
         let reader = create_multi_threaded_reader(
@@ -306,11 +316,13 @@ impl PyMultiThreadedReader {
         }
 
         // Close the reader explicitly
-        reader.close().map_err(|e| PyIOError::new_err(e.to_string()))?;
+        reader
+            .close()
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
 
         Ok(count)
     }
-    
+
     #[staticmethod]
     fn new_with_random_shard_paths(
         shard_paths: Vec<String>,
@@ -321,7 +333,7 @@ impl PyMultiThreadedReader {
     ) -> PyResult<Self> {
         // Convert Vec<String> to Vec<PathBuf>
         let path_bufs = string_paths_to_pathbufs(shard_paths);
-            
+
         // Create a RandomMultiPathShardLocator with the shard paths
         // This will read shards in a randomized order, repeating indefinitely and reshuffling
         // after each complete pass through all the shards
