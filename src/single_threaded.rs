@@ -25,7 +25,8 @@ impl PyRecordWriter {
 
         let writer = match compression {
             Some("zstd") => {
-                let config = RecordWriterConfig::default().with_compression(CompressionType::Zstd(3));
+                let config =
+                    RecordWriterConfig::default().with_compression(CompressionType::Zstd(3));
                 RecordWriter::with_config(file, config)
                     .map_err(|e| PyIOError::new_err(e.to_string()))?
             }
