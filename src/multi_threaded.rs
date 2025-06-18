@@ -27,7 +27,15 @@ pub struct PyMultiThreadedWriter {
 #[pymethods]
 impl PyMultiThreadedWriter {
     #[staticmethod]
-    #[pyo3(signature = (dir_path, prefix, num_shards, worker_threads=None, max_bytes_per_writer=None, task_queue_capacity=None, enable_auto_sharding=None, append=None, compression=None))]
+    #[pyo3(signature = (dir_path, 
+                        prefix, 
+                        num_shards, 
+                        worker_threads=None, 
+                        max_bytes_per_writer=None, 
+                        task_queue_capacity=None, 
+                        enable_auto_sharding=None, 
+                        append=None, 
+                        compression=None))]
     fn new_with_shards(
         dir_path: &str,
         prefix: &str,
