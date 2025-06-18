@@ -260,5 +260,181 @@ class TestMultiThreaded:
             assert set(records) == expected_records
 
 
+class TestCompression:
+    """Tests for compression support."""
+
+    def test_single_threaded_zstd_compression(self):
+        """Test single-threaded writer and reader with zstd compression."""
+        with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
+            temp_path = temp.name
+
+        try:
+            # Test records with varying compression characteristics
+            test_records = [
+                b"Short record",
+                b"Repetitive " * 100,  # Should compress well
+                bytes(range(256)),     # Binary data
+                b"",                   # Empty record
+                b"A" * 10000,         # Large repetitive record
+            ]
+
+            # Write with zstd compression
+            with RecordWriter(temp_path, compression="zstd") as writer:
+                for record in test_records:
+                    writer.write_record(record)
+
+            # Read back and verify
+            read_records = []
+            with RecordReader(temp_path) as reader:
+                for record in reader:
+                    read_records.append(record.to_bytes())
+
+            # Verify all records match
+            assert len(read_records) == len(test_records)
+            for original, read_back in zip(test_records, read_records):
+                assert original == read_back
+
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    def test_single_threaded_no_compression_explicit(self):
+        """Test single-threaded writer with explicit 'none' compression."""
+        with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
+            temp_path = temp.name
+
+        try:
+            test_records = [b"Record 1", b"Record 2"]
+
+            # Write with explicit no compression
+            with RecordWriter(temp_path, compression="none") as writer:
+                for record in test_records:
+                    writer.write_record(record)
+
+            # Read back and verify
+            read_records = []
+            with RecordReader(temp_path) as reader:
+                for record in reader:
+                    read_records.append(record.to_bytes())
+
+            assert len(read_records) == len(test_records)
+            for original, read_back in zip(test_records, read_records):
+                assert original == read_back
+
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    def test_multi_threaded_zstd_compression(self):
+        """Test multi-threaded writer and reader with zstd compression."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Test records
+            test_records = []
+            for i in range(50):
+                if i % 5 == 0:
+                    # Add repetitive data that compresses well
+                    test_records.append(f"Repetitive record {i}: " * 10)
+                else:
+                    test_records.append(f"Unique record {i}")
+
+            # Write with multi-threaded zstd compression
+            with MultiThreadedWriter.new_with_shards(
+                dir_path=tmpdir,
+                prefix="zstd_test",
+                num_shards=2,
+                worker_threads=2,
+                compression="zstd"
+            ) as writer:
+                for record in test_records:
+                    writer.write_record(record.encode('utf-8'))
+
+            # Read back and verify
+            read_records = []
+            with MultiThreadedReader.new_with_shards(
+                dir_path=tmpdir,
+                prefix="zstd_test",
+                num_shards=2,
+                worker_threads=2,
+            ) as reader:
+                for record in reader:
+                    read_records.append(record.to_bytes().decode('utf-8'))
+
+            # Sort both lists since multi-threaded reading may return records in different order
+            test_records.sort()
+            read_records.sort()
+
+            # Verify all records match
+            assert len(read_records) == len(test_records)
+            for original, read_back in zip(test_records, read_records):
+                assert original == read_back
+
+    def test_compression_effectiveness(self):
+        """Test that zstd compression actually reduces file size for repetitive data."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create highly repetitive data
+            repetitive_record = b"COMPRESS_ME_" * 100  # 1200 bytes
+            test_records = [repetitive_record] * 20    # 24KB total
+
+            # Write without compression
+            uncompressed_path = os.path.join(tmpdir, "uncompressed.disky")
+            with RecordWriter(uncompressed_path, compression="none") as writer:
+                for record in test_records:
+                    writer.write_record(record)
+
+            # Write with zstd compression
+            compressed_path = os.path.join(tmpdir, "compressed.disky")
+            with RecordWriter(compressed_path, compression="zstd") as writer:
+                for record in test_records:
+                    writer.write_record(record)
+
+            # Compare file sizes
+            uncompressed_size = os.path.getsize(uncompressed_path)
+            compressed_size = os.path.getsize(compressed_path)
+
+            # For highly repetitive data, compressed should be significantly smaller
+            # Allow for some overhead from headers/metadata
+            assert compressed_size < uncompressed_size * 0.5, \
+                f"Expected significant compression, got {compressed_size} vs {uncompressed_size}"
+
+            # Verify both files read the same data
+            with RecordReader(uncompressed_path) as reader:
+                uncompressed_records = [r.to_bytes() for r in reader]
+
+            with RecordReader(compressed_path) as reader:
+                compressed_records = [r.to_bytes() for r in reader]
+
+            assert uncompressed_records == compressed_records
+
+    def test_invalid_compression_type(self):
+        """Test that invalid compression types raise appropriate errors."""
+        with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
+            temp_path = temp.name
+
+        try:
+            # Test invalid compression type
+            with pytest.raises(Exception) as exc_info:
+                RecordWriter(temp_path, compression="invalid_compression")
+
+            assert "Unsupported compression type" in str(exc_info.value)
+
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    def test_multi_threaded_invalid_compression_type(self):
+        """Test that invalid compression types raise appropriate errors in multi-threaded writer."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Test invalid compression type
+            with pytest.raises(Exception) as exc_info:
+                MultiThreadedWriter.new_with_shards(
+                    dir_path=tmpdir,
+                    prefix="invalid_test",
+                    num_shards=2,
+                    compression="invalid_compression"
+                )
+
+            assert "Unsupported compression type" in str(exc_info.value)
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

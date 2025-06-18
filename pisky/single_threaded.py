@@ -54,8 +54,13 @@ class RecordWriter:
         from pisky import RecordWriter
         from pathlib import Path
         
-        # Using a string path
+        # Using a string path with no compression
         with RecordWriter("output.disky") as writer:
+            writer.write_record(b"Record 1")
+            writer.write_record(b"Record 2")
+        
+        # Using zstd compression
+        with RecordWriter("compressed.disky", compression="zstd") as writer:
             writer.write_record(b"Record 1")
             writer.write_record(b"Record 2")
         
@@ -74,21 +79,26 @@ class RecordWriter:
         ```
     """
     
-    def __init__(self, path: PathType):
+    def __init__(self, path: PathType, compression: Optional[str] = None):
         """
         Create a new RecordWriter that writes to the specified path.
         
         Args:
             path: Path to the output file. Can be a string, pathlib.Path,
                 or any object that can be converted to a string path.
+            compression: Compression algorithm to use. Options:
+                - None: No compression (default)
+                - "zstd": Zstandard compression
+                - "none": Explicitly no compression
             
         Raises:
             IOError: If the file cannot be created
             TypeError: If the path cannot be converted to a string
+            ValueError: If an unsupported compression type is specified
         """
         # Convert path to string in Python before passing to Rust
         path_str = str(path)
-        self._writer = PyRecordWriter(path_str)
+        self._writer = PyRecordWriter(path_str, compression)
     
     def write_record(self, data: bytes) -> None:
         """

@@ -9,6 +9,8 @@ use disky::parallel::multi_threaded_writer::{MultiThreadedWriter, MultiThreadedW
 use disky::parallel::reader::DiskyParallelPiece;
 use disky::parallel::sharding::{FileShardLocator, FileSharder, FileSharderConfig, MultiPathShardLocator, RandomMultiPathShardLocator};
 use disky::parallel::writer::{ParallelWriterConfig, ShardingConfig as WriterShardingConfig};
+use disky::writer::RecordWriterConfig;
+use disky::compression::CompressionType;
 
 use crate::corruption::PyCorruptionStrategy;
 use crate::shard_helpers::{create_multi_threaded_reader, string_paths_to_pathbufs};
@@ -22,6 +24,7 @@ pub struct PyMultiThreadedWriter {
 #[pymethods]
 impl PyMultiThreadedWriter {
     #[staticmethod]
+    #[pyo3(signature = (dir_path, prefix, num_shards, worker_threads=None, max_bytes_per_writer=None, task_queue_capacity=None, enable_auto_sharding=None, append=None, compression=None))]
     fn new_with_shards(
         dir_path: &str,
         prefix: &str,
@@ -31,6 +34,7 @@ impl PyMultiThreadedWriter {
         task_queue_capacity: Option<usize>,
         enable_auto_sharding: Option<bool>,
         append: Option<bool>,
+        compression: Option<&str>,
     ) -> PyResult<Self> {
         // Create FileSharderConfig
         let mut sharder_config = FileSharderConfig::new(prefix);
@@ -50,8 +54,22 @@ impl PyMultiThreadedWriter {
             WriterShardingConfig::new(Box::new(file_sharder), num_shards)
         };
 
-        // Create writer config starting with default
-        let mut writer_config = ParallelWriterConfig::default();
+        // Create record writer config with compression if specified
+        let record_writer_config = match compression {
+            Some("zstd") => RecordWriterConfig::default().with_compression(CompressionType::Zstd),
+            Some("none") => RecordWriterConfig::default().with_compression(CompressionType::None),
+            Some(other) => {
+                return Err(PyIOError::new_err(format!("Unsupported compression type: '{}'. Supported types: 'zstd', 'none'", other)));
+            },
+            None => RecordWriterConfig::default(),
+        };
+
+        // Create writer config starting with compression-aware record config
+        let mut writer_config = ParallelWriterConfig {
+            writer_config: record_writer_config,
+            max_bytes_per_writer: None,
+            task_queue_capacity: None,
+        };
 
         // Apply max_bytes_per_writer if provided - directly modify the field
         writer_config.max_bytes_per_writer = max_bytes_per_writer;

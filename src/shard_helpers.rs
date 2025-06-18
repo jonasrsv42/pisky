@@ -3,7 +3,9 @@ use pyo3::prelude::*;
 use std::fs::File;
 use std::path::PathBuf;
 
-use disky::parallel::multi_threaded_reader::{MultiThreadedReader, MultiThreadedReaderConfig};
+use disky::parallel::multi_threaded_reader::{
+    MultiThreadedReader, MultiThreadedReaderConfig, ReadingOrder,
+};
 use disky::parallel::reader::{ParallelReaderConfig, ShardingConfig as ReaderShardingConfig};
 use disky::parallel::sharding::ShardLocator;
 
@@ -39,6 +41,7 @@ where
                 reader_config: parallel_reader_config,
                 worker_threads: threads,
                 queue_size_bytes: queue_mb * 1024 * 1024, // Convert MB to bytes
+                reading_order: ReadingOrder::RoundRobin,
             }
         }
         (Some(threads), None) => {
@@ -46,6 +49,7 @@ where
                 reader_config: parallel_reader_config,
                 worker_threads: threads,
                 queue_size_bytes: 8 * 1024 * 1024, // Default 8MB
+                reading_order: ReadingOrder::RoundRobin,
             }
         }
         (None, Some(queue_mb)) => {
@@ -53,6 +57,7 @@ where
                 reader_config: parallel_reader_config,
                 worker_threads: MultiThreadedReaderConfig::default().worker_threads,
                 queue_size_bytes: queue_mb * 1024 * 1024, // Convert MB to bytes
+                reading_order: ReadingOrder::RoundRobin,
             }
         }
         (None, None) => {
@@ -73,3 +78,4 @@ where
 pub fn string_paths_to_pathbufs(shard_paths: Vec<String>) -> Vec<PathBuf> {
     shard_paths.into_iter().map(|s| PathBuf::from(s)).collect()
 }
+

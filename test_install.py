@@ -31,9 +31,28 @@ try:
     
     print("✅ Successfully counted records:", RecordReader.count_records(temp_path))
     
+    # Test zstd compression functionality (new in v0.6.0)
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        zstd_temp_path = tmp.name
+    
+    # Test zstd compression
+    with RecordWriter(zstd_temp_path, compression="zstd") as writer:
+        writer.write_record(b"Compressed record 1")
+        writer.write_record(b"Compressed record 2" * 100)  # Repetitive data
+        print("✅ Successfully wrote records with zstd compression")
+    
+    # Read back compressed records
+    with RecordReader(zstd_temp_path) as reader:
+        compressed_records = [record.to_bytes() for record in reader]
+        assert len(compressed_records) == 2
+        assert compressed_records[0] == b"Compressed record 1"
+        assert compressed_records[1] == b"Compressed record 2" * 100
+        print("✅ Successfully read zstd compressed records")
+    
     # Clean up
     os.unlink(temp_path)
-    print("✅ All tests passed! Pisky installation verified.")
+    os.unlink(zstd_temp_path)
+    print("✅ All tests passed! Pisky installation verified with zstd compression support.")
 
 except ImportError as e:
     print(f"❌ Failed to import pisky: {e}")

@@ -5,7 +5,8 @@ use std::fs::File;
 use std::path::Path;
 
 use disky::reader::{DiskyPiece, RecordReader};
-use disky::writer::RecordWriter;
+use disky::writer::{RecordWriter, RecordWriterConfig};
+use disky::compression::CompressionType;
 
 use crate::corruption::PyCorruptionStrategy;
 
@@ -18,9 +19,24 @@ pub struct PyRecordWriter {
 #[pymethods]
 impl PyRecordWriter {
     #[new]
-    fn new(path: &str) -> PyResult<Self> {
+    #[pyo3(signature = (path, compression=None))]
+    fn new(path: &str, compression: Option<&str>) -> PyResult<Self> {
         let file = File::create(Path::new(path)).map_err(|e| PyIOError::new_err(e.to_string()))?;
-        let writer = RecordWriter::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        
+        let writer = match compression {
+            Some("zstd") => {
+                let config = RecordWriterConfig::default().with_compression(CompressionType::Zstd);
+                RecordWriter::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
+            },
+            Some("none") => {
+                let config = RecordWriterConfig::default().with_compression(CompressionType::None);
+                RecordWriter::with_config(file, config).map_err(|e| PyIOError::new_err(e.to_string()))?
+            },
+            Some(other) => {
+                return Err(PyIOError::new_err(format!("Unsupported compression type: '{}'. Supported types: 'zstd', 'none'", other)));
+            },
+            None => RecordWriter::new(file).map_err(|e| PyIOError::new_err(e.to_string()))?,
+        };
 
         Ok(Self { writer })
     }

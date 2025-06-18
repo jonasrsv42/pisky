@@ -80,6 +80,7 @@ class MultiThreadedWriter:
         task_queue_capacity: int = 2000,
         enable_auto_sharding: bool = True,
         append: bool = True,
+        compression: Optional[str] = None,
     ) -> "MultiThreadedWriter":
         """
         Create a new MultiThreadedWriter that writes to multiple sharded files.
@@ -95,6 +96,10 @@ class MultiThreadedWriter:
             task_queue_capacity: Capacity of the task queue (default: 2000)
             enable_auto_sharding: Whether to enable auto-sharding (default: True)
             append: Whether to append to existing shards (default: True)
+            compression: Compression algorithm to use. Options:
+                - None: No compression (default)
+                - "zstd": Zstandard compression
+                - "none": Explicitly no compression
 
         Returns:
             A new MultiThreadedWriter instance
@@ -114,6 +119,7 @@ class MultiThreadedWriter:
             task_queue_capacity,
             enable_auto_sharding,
             append,
+            compression,
         )
         return MultiThreadedWriter(writer)
 
