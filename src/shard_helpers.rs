@@ -78,4 +78,3 @@ where
 pub fn string_paths_to_pathbufs(shard_paths: Vec<String>) -> Vec<PathBuf> {
     shard_paths.into_iter().map(|s| PathBuf::from(s)).collect()
 }
-

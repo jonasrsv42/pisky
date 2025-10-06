@@ -155,4 +155,3 @@ impl PyRecordReader {
         self.next_record()
     }
 }
-

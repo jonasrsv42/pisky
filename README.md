@@ -171,66 +171,6 @@ with tempfile.TemporaryDirectory() as temp_dir:
             pass
 ```
 
-## API Reference
-
-### Single-Threaded API
-
-#### `RecordWriter`
-
-The main class for writing records to Disky files.
-
-- **Constructor**: `RecordWriter(path: str)`: Create a new writer that writes to the specified file path.
-- **Methods**:
-  - `write_record(data: bytes) -> None`: Write a record to the file.
-  - `flush() -> None`: Flush any buffered records to disk.
-  - `close() -> None`: Close the writer, flushing any remaining data.
-
-#### `RecordReader`
-
-The main class for reading records from Disky files.
-
-- **Constructor**: `RecordReader(path: str)`: Create a new reader that reads from the specified file path.
-- **Methods**:
-  - `next_record() -> Optional[Bytes]`: Read the next record from the file, or None at EOF.
-  - `close() -> None`: Close the reader.
-
-#### `Bytes`
-
-A custom bytes-like class returned by the reader, with zero-copy semantics.
-
-- **Methods**:
-  - `to_bytes() -> bytes`: Convert to a standard Python bytes object.
-  - Plus most standard bytes methods like `isalnum()`, `upper()`, etc.
-
-### Multi-Threaded API
-
-#### `MultiThreadedWriter`
-
-The class for writing records across multiple shards in parallel.
-
-- **Constructor**: 
-  - `MultiThreadedWriter.new_with_shards(dir_path: str, prefix: str = "shard", num_shards: int = 2, worker_threads: Optional[int] = None, max_bytes_per_writer: Optional[int] = 10GB, task_queue_capacity: int = 2000, enable_auto_sharding: bool = True, append: bool = True)`: Create a new multi-threaded writer.
-  
-- **Methods**:
-  - `write_record(data: bytes) -> None`: Write a record to a shard file.
-  - `flush() -> None`: Flush any buffered records to disk.
-  - `close() -> None`: Close the writer, flushing any remaining data.
-  - `pending_tasks() -> int`: Get the number of pending write tasks.
-  - `available_writers() -> int`: Get the number of available writer resources.
-
-#### `MultiThreadedReader`
-
-The class for reading records from multiple shards in parallel.
-
-- **Constructor**: 
-  - `MultiThreadedReader.new_with_shards(dir_path: str, prefix: str = "shard", num_shards: int = 2, worker_threads: int = 1, queue_size_mb: int = 10*1024)`: Create a new multi-threaded reader.
-  
-- **Methods**:
-  - `next_record() -> Optional[Bytes]`: Read the next record, or None at EOF.
-  - `close() -> None`: Close the reader.
-  - `queued_records() -> int`: Get the number of records currently in the queue.
-  - `queued_bytes() -> int`: Get the total size of queued records in bytes.
-
 ## Development
 
 ### Setting up Development Environment

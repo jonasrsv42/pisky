@@ -26,10 +26,10 @@ pub fn set_log_level(level_str: &str) -> PyResult<()> {
             return Err(PyIOError::new_err(format!(
                 "Invalid log level: {}. Valid levels are: trace, debug, info, warn, error, off",
                 level_str
-            )))
+            )));
         }
     };
-    
+
     init_logger(level);
     Ok(())
 }
