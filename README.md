@@ -1,16 +1,6 @@
 # Pisky: Python Bindings for Disky
 
-Pisky provides Python bindings for the [Disky](https://github.com/jonasrsv42/disky) library, a high-performance Rust implementation of the Riegeli file format. These bindings allow Python developers to efficiently read and write record-based data using the Disky format.
-
-## Features
-
-- **Single-threaded API**: Simple reader and writer classes with context manager support
-- **Multi-threaded API**: Parallel reading and writing for high throughput
-- **Zero-copy record access**: Efficient memory usage for high-performance applications
-- **Auto-sharding**: Distribute records across multiple files automatically
-- **Python-native interface**: Works with standard Python bytes and context managers
-- **Static type checking**: Full type hints with mypy support
-- **Utility functions**: Tools for working with sharded Disky files
+Pisky provides Python bindings for the [Disky](https://github.com/jonasrsv42/disky) library. These bindings allow Python developers to efficiently read and write record-based data using the Disky format.
 
 ## Installation
 
@@ -32,12 +22,6 @@ pip install maturin
 3. Build and install in development mode:
 ```bash
 maturin develop
-```
-
-### From PyPI (once published)
-
-```bash
-pip install pisky
 ```
 
 ## Quick Start
@@ -287,23 +271,6 @@ python -m pytest -v
 # Run a specific test file
 python -m pytest tests/test_pisky.py
 ```
-
-### Building the Package
-
-```bash
-# Build a wheel
-maturin build
-
-# Build and publish to PyPI
-maturin build --release
-twine upload target/wheels/*.whl
-```
-
-## Performance Considerations
-
-The Python bindings for Disky use zero-copy mechanisms when reading records, providing excellent performance even for large datasets. When processing large files, the memory usage is kept minimal as records are read on demand rather than all at once.
-
-For high-throughput scenarios, the multi-threaded API can significantly improve performance by distributing work across multiple threads and taking advantage of all available CPU cores.
 
 ## License
 
