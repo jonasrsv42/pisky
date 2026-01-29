@@ -15,6 +15,6 @@ CARGO_NET_GIT_FETCH_WITH_CLI = { value = "true" }
 pyo3 = "0.25.0"
 pyo3-bytes = "0.3.0"
 bytes = "1.4"
-disky = { git = "ssh://git@github.com/jonasrsv42/disky", features = ["parallel", "zstd"]}
+disky = { git = "ssh://git@github.com/jonasrsv42/disky", features = ["parallel", "zstd", "random"]}
 log = "0.4"
 env_logger = "0.10"

@@ -7,11 +7,19 @@ which implements the Riegeli record format in Rust.
 
 import importlib.metadata
 
+# New config-based API
+from pisky.single import (
+    RecordReader,
+    RecordReaderConfig,
+    RecordWriter,
+    RecordWriterConfig,
+    Zstd,
+    Uncompressed,
+)
+from pisky.bytes import Bytes
+
 # Import CorruptionStrategy, set_log_level, and PathType from common module
 from .common import CorruptionStrategy, set_log_level, PathType
-
-# Import Bytes, RecordReader, and RecordWriter from single_threaded module
-from .single_threaded import Bytes, RecordReader, RecordWriter
 
 # Import MultiThreadedReader and MultiThreadedWriter from multi_threaded module
 from .multi_threaded import MultiThreadedReader, MultiThreadedWriter
@@ -25,12 +33,17 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 __all__ = [
-    # Classes
-    "RecordWriter", 
-    "RecordReader", 
-    "MultiThreadedWriter", 
+    # New config-based API
+    "RecordReaderConfig",
+    "RecordWriterConfig",
+    "RecordReader",
+    "RecordWriter",
+    "Zstd",
+    "Uncompressed",
+    "Bytes",
+    # Legacy classes
+    "MultiThreadedWriter",
     "MultiThreadedReader",
-    "Bytes", 
     "CorruptionStrategy",
     "Globable",
     # Functions

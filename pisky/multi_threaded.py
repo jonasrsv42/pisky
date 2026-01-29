@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Iterator, Optional, Sequence, Union
 
 from ._pisky import PyMultiThreadedReader, PyMultiThreadedWriter
-from .single_threaded import Bytes
+from .bytes import Bytes
 
 # Define a type for path-like objects
 PathType = Union[str, Path, PathLike, Any]

@@ -2,21 +2,20 @@ use bytes::Bytes;
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 use std::fs::File;
-use std::path::PathBuf;
 
 use disky::compression::CompressionType;
 use disky::parallel::multi_threaded_reader::MultiThreadedReader;
 use disky::parallel::multi_threaded_writer::{MultiThreadedWriter, MultiThreadedWriterConfig};
 use disky::parallel::reader::DiskyParallelPiece;
-use disky::parallel::sharding::{
-    FileShardLocator, FileSharder, FileSharderConfig, MultiPathShardLocator,
-    RandomMultiPathShardLocator,
-};
 use disky::parallel::writer::{ParallelWriterConfig, ShardingConfig as WriterShardingConfig};
-use disky::writer::RecordWriterConfig;
+use disky::shard::sink::FileShardsBuilder;
+use disky::writer::RecordWriterOptions;
 
 use crate::corruption::PyCorruptionStrategy;
-use crate::shard_helpers::{create_multi_threaded_reader, string_paths_to_pathbufs};
+use crate::shard_helpers::{
+    create_multi_threaded_reader, create_random_repeating_source, create_sequential_source,
+    create_sequential_source_from_paths, string_paths_to_pathbufs,
+};
 
 /// Python wrapper for Disky's MultiThreadedWriter
 #[pyclass]
@@ -27,14 +26,14 @@ pub struct PyMultiThreadedWriter {
 #[pymethods]
 impl PyMultiThreadedWriter {
     #[staticmethod]
-    #[pyo3(signature = (dir_path, 
-                        prefix, 
-                        num_shards, 
-                        worker_threads=None, 
-                        max_bytes_per_writer=None, 
-                        task_queue_capacity=None, 
-                        enable_auto_sharding=None, 
-                        append=None, 
+    #[pyo3(signature = (dir_path,
+                        prefix,
+                        num_shards,
+                        worker_threads=None,
+                        max_bytes_per_writer=None,
+                        task_queue_capacity=None,
+                        enable_auto_sharding=None,
+                        append=None,
                         compression=None))]
     fn new_with_shards(
         dir_path: &str,
@@ -47,69 +46,62 @@ impl PyMultiThreadedWriter {
         append: Option<bool>,
         compression: Option<&str>,
     ) -> PyResult<Self> {
-        // Create FileSharderConfig
-        let mut sharder_config = FileSharderConfig::new(prefix);
+        // Create FileShardsBuilder
+        let mut builder = FileShardsBuilder::new(dir_path, prefix);
 
         // Set append mode if specified
         if let Some(true) = append {
-            sharder_config = sharder_config.with_append(true);
+            builder = builder.append();
         }
 
-        // Create the FileSharder with the config
-        let file_sharder = FileSharder::with_config(PathBuf::from(dir_path), sharder_config);
+        // Build the file shards
+        let file_shards = builder.build().map_err(|e| PyIOError::new_err(e.to_string()))?;
 
         // Configure the sharding with auto-sharding if enabled
         let sharding_config = if let Some(true) = enable_auto_sharding {
-            WriterShardingConfig::with_auto_sharding(Box::new(file_sharder), num_shards)
+            WriterShardingConfig::with_auto_sharding(Box::new(file_shards), num_shards)
         } else {
-            WriterShardingConfig::new(Box::new(file_sharder), num_shards)
+            WriterShardingConfig::new(Box::new(file_shards), num_shards)
         };
 
-        // Create record writer config with compression if specified
-        let record_writer_config = match compression {
+        // Create record writer options with compression if specified
+        let writer_options = match compression {
             Some("zstd") => {
-                RecordWriterConfig::default().with_compression(CompressionType::Zstd(3))
+                RecordWriterOptions::default().with_compression(CompressionType::Zstd(3))
             }
-            Some("none") => RecordWriterConfig::default().with_compression(CompressionType::None),
+            Some("none") => RecordWriterOptions::default().with_compression(CompressionType::None),
             Some(other) => {
                 return Err(PyIOError::new_err(format!(
                     "Unsupported compression type: '{}'. Supported types: 'zstd', 'none'",
                     other
                 )));
             }
-            None => RecordWriterConfig::default(),
+            None => RecordWriterOptions::default(),
         };
 
-        // Create writer config starting with compression-aware record config
-        let mut writer_config = ParallelWriterConfig {
-            writer_config: record_writer_config,
-            max_bytes_per_writer: None,
+        // Create parallel writer config
+        let mut parallel_writer_config = ParallelWriterConfig {
+            writer_options,
+            max_bytes_per_writer,
             task_queue_capacity: None,
         };
 
-        // Apply max_bytes_per_writer if provided - directly modify the field
-        writer_config.max_bytes_per_writer = max_bytes_per_writer;
-
         // Apply task_queue_capacity if provided
         if let Some(capacity) = task_queue_capacity {
-            writer_config = writer_config.with_task_queue_capacity(capacity);
+            parallel_writer_config = parallel_writer_config.with_task_queue_capacity(capacity);
         }
 
-        // Create the multi-threaded writer config
-        let config = if let Some(threads) = worker_threads {
-            MultiThreadedWriterConfig {
-                writer_config,
-                worker_threads: threads,
-            }
-        } else {
-            MultiThreadedWriterConfig {
-                writer_config,
-                worker_threads: MultiThreadedWriterConfig::default().worker_threads,
-            }
-        };
+        // Create the multi-threaded writer using builder pattern
+        let mut config = MultiThreadedWriterConfig::new(sharding_config)
+            .with_writer_config(parallel_writer_config);
 
-        // Create the multi-threaded writer
-        let writer = MultiThreadedWriter::new(sharding_config, config)
+        // Apply worker_threads if provided
+        if let Some(threads) = worker_threads {
+            config = config.with_worker_threads(threads);
+        }
+
+        // Build the multi-threaded writer
+        let writer = config.build()
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
 
         Ok(Self { writer })
@@ -204,13 +196,12 @@ impl PyMultiThreadedReader {
         queue_size_mb: Option<usize>,
         corruption_strategy: Option<PyCorruptionStrategy>,
     ) -> PyResult<Self> {
-        // Create a FileShardLocator for the sharded files
-        let shard_locator = FileShardLocator::new(PathBuf::from(dir_path), prefix)
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        // Create a sequential shard source
+        let shard_source = create_sequential_source(dir_path, prefix)?;
 
         // Create the multi-threaded reader
         let reader = create_multi_threaded_reader(
-            shard_locator,
+            shard_source,
             num_shards,
             worker_threads,
             queue_size_mb,
@@ -230,13 +221,12 @@ impl PyMultiThreadedReader {
         queue_size_mb: Option<usize>,
         corruption_strategy: Option<PyCorruptionStrategy>,
     ) -> PyResult<usize> {
-        // Create a FileShardLocator for the sharded files
-        let shard_locator = FileShardLocator::new(PathBuf::from(dir_path), prefix)
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        // Create a sequential shard source
+        let shard_source = create_sequential_source(dir_path, prefix)?;
 
         // Create the multi-threaded reader
         let reader = create_multi_threaded_reader(
-            shard_locator,
+            shard_source,
             num_shards,
             worker_threads,
             queue_size_mb,
@@ -248,12 +238,11 @@ impl PyMultiThreadedReader {
             match reader.read() {
                 Ok(DiskyParallelPiece::Record(_)) => count += 1,
                 Ok(DiskyParallelPiece::EOF) => break,
-                Ok(DiskyParallelPiece::ShardFinished) => continue, // Skip shard finished markers
+                Ok(DiskyParallelPiece::ShardFinished) => continue,
                 Err(e) => return Err(PyIOError::new_err(e.to_string())),
             }
         }
 
-        // Close the reader explicitly
         reader
             .close()
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
@@ -272,13 +261,12 @@ impl PyMultiThreadedReader {
         // Convert Vec<String> to Vec<PathBuf>
         let path_bufs = string_paths_to_pathbufs(shard_paths);
 
-        // Create a MultiPathShardLocator with the shard paths
-        let shard_locator =
-            MultiPathShardLocator::new(path_bufs).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        // Create a sequential shard source from the paths
+        let shard_source = create_sequential_source_from_paths(path_bufs)?;
 
         // Create the multi-threaded reader
         let reader = create_multi_threaded_reader(
-            shard_locator,
+            shard_source,
             num_shards,
             worker_threads,
             queue_size_mb,
@@ -300,13 +288,12 @@ impl PyMultiThreadedReader {
         // Convert Vec<String> to Vec<PathBuf>
         let path_bufs = string_paths_to_pathbufs(shard_paths);
 
-        // Create a MultiPathShardLocator with the shard paths
-        let shard_locator =
-            MultiPathShardLocator::new(path_bufs).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        // Create a sequential shard source from the paths
+        let shard_source = create_sequential_source_from_paths(path_bufs)?;
 
         // Create the multi-threaded reader
         let reader = create_multi_threaded_reader(
-            shard_locator,
+            shard_source,
             num_shards,
             worker_threads,
             queue_size_mb,
@@ -342,15 +329,14 @@ impl PyMultiThreadedReader {
         // Convert Vec<String> to Vec<PathBuf>
         let path_bufs = string_paths_to_pathbufs(shard_paths);
 
-        // Create a RandomMultiPathShardLocator with the shard paths
+        // Create a random repeating shard source from the paths
         // This will read shards in a randomized order, repeating indefinitely and reshuffling
         // after each complete pass through all the shards
-        let shard_locator = RandomMultiPathShardLocator::new(path_bufs)
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let shard_source = create_random_repeating_source(path_bufs)?;
 
         // Create the multi-threaded reader
         let reader = create_multi_threaded_reader(
-            shard_locator,
+            shard_source,
             num_shards,
             worker_threads,
             queue_size_mb,
