@@ -13,7 +13,8 @@ from pathlib import Path
 import unittest
 from typing import Iterator, List
 
-from pisky import MultiThreadedWriter, expand_dirs, Globable
+from pisky import expand_dirs, Globable
+from pisky.multi_threaded import writer
 
 
 class CustomPath:
@@ -62,22 +63,16 @@ class TestExpand(unittest.TestCase):
             dir2 = Path(temp_dir2)
             
             # Write shards to the first directory
-            with MultiThreadedWriter.new_with_shards(
-                dir_path=dir1,
-                prefix="shard",
-                num_shards=2
-            ) as writer:
+            sink1 = writer.FileShards.from_pattern(str(dir1), "shard")
+            with writer.MultiThreadedConfig(sink1, num_shards=2) as w:
                 for i in range(10):
-                    writer.write_record(f"Record1 #{i}".encode('utf-8'))
-            
+                    w.write(f"Record1 #{i}".encode('utf-8'))
+
             # Write shards to the second directory with a different prefix
-            with MultiThreadedWriter.new_with_shards(
-                dir_path=dir2,
-                prefix="custom",
-                num_shards=3
-            ) as writer:
+            sink2 = writer.FileShards.from_pattern(str(dir2), "custom")
+            with writer.MultiThreadedConfig(sink2, num_shards=3) as w:
                 for i in range(10):
-                    writer.write_record(f"Record2 #{i}".encode('utf-8'))
+                    w.write(f"Record2 #{i}".encode('utf-8'))
             
             # Verify shards were created
             shard_files1 = list(dir1.glob("shard_*"))
@@ -107,22 +102,16 @@ class TestExpand(unittest.TestCase):
             dir2 = CustomPath(temp_dir2)
             
             # Write shards to the first directory
-            with MultiThreadedWriter.new_with_shards(
-                dir_path=dir1.path,  # Use string path for MultiThreadedWriter
-                prefix="shard",
-                num_shards=2
-            ) as writer:
+            sink1 = writer.FileShards.from_pattern(dir1.path, "shard")
+            with writer.MultiThreadedConfig(sink1, num_shards=2) as w:
                 for i in range(10):
-                    writer.write_record(f"Record1 #{i}".encode('utf-8'))
-            
+                    w.write(f"Record1 #{i}".encode('utf-8'))
+
             # Write shards to the second directory with a different prefix
-            with MultiThreadedWriter.new_with_shards(
-                dir_path=dir2.path,  # Use string path for MultiThreadedWriter
-                prefix="custom",
-                num_shards=3
-            ) as writer:
+            sink2 = writer.FileShards.from_pattern(dir2.path, "custom")
+            with writer.MultiThreadedConfig(sink2, num_shards=3) as w:
                 for i in range(10):
-                    writer.write_record(f"Record2 #{i}".encode('utf-8'))
+                    w.write(f"Record2 #{i}".encode('utf-8'))
             
             # Test expand_dirs with default prefix using custom path objects
             all_shards = expand_dirs([dir1, dir2])

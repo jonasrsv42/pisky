@@ -1,18 +1,14 @@
 """Single-file record writer with config-based API."""
 
-from typing import Any
-from pathlib import Path
 from os import PathLike
+from pathlib import Path
+from typing import Any
 
-from .._pisky import (
-    RecordWriterConfig as _RecordWriterConfig,
-    RecordWriter as _RecordWriter,
-    Zstd,
-    Uncompressed,
-)
+from .._pisky import RecordWriter as _RecordWriter
+from .._pisky import RecordWriterConfig as _RecordWriterConfig
+from ..compression import Compression, Zstd, Uncompressed
 
 PathType = str | Path | PathLike[Any]
-Compression = Zstd | Uncompressed
 
 
 class RecordWriter:
@@ -39,11 +35,7 @@ class RecordWriter:
         """
         self._inner.write(data)
 
-    def flush(self) -> None:
-        """Flush buffered data to disk."""
-        self._inner.flush()
-
-    def close(self) -> None:
+    def _close(self) -> None:
         """Close the writer. Called automatically on context exit."""
         self._inner.close()
 
@@ -73,19 +65,18 @@ class RecordWriterConfig:
     Args:
         path: Path to the output file.
         compression: Compression to use. Options:
-            - None: No compression (default)
+            - Uncompressed(): No compression (default)
             - Zstd(level): Zstandard compression with given level (1-22, default 3)
-            - Uncompressed(): Explicitly no compression
     """
 
     def __init__(
         self,
         path: PathType,
-        compression: Compression | None = None,
+        compression: Compression = Uncompressed(),
     ) -> None:
         self._path = str(path)
         self._compression = compression
-        self._config = _RecordWriterConfig(self._path, compression)
+        self._config = _RecordWriterConfig(self._path, compression._to_py())
         self._writer: RecordWriter | None = None
 
     def __enter__(self) -> RecordWriter:
@@ -100,6 +91,6 @@ class RecordWriterConfig:
         exc_tb: Any,
     ) -> bool:
         if self._writer is not None:
-            self._writer.close()
+            self._writer._close()
             self._writer = None
         return False

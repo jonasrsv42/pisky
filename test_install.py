@@ -7,43 +7,41 @@ import tempfile
 
 try:
     # Try to import from the installed pisky package
-    from pisky import RecordWriter, RecordReader
-    
+    from pisky import RecordWriterConfig, RecordReaderConfig, Zstd
+
     print("✅ Successfully imported pisky module")
-    
+
     # Test basic write and read functionality
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         temp_path = tmp.name
-    
+
     # Write some records
-    with RecordWriter(temp_path) as writer:
-        writer.write_record(b"Test record 1")
-        writer.write_record(b"Test record 2")
-        writer.write_record(b"Test record 3")
+    with RecordWriterConfig(temp_path) as writer:
+        writer.write(b"Test record 1")
+        writer.write(b"Test record 2")
+        writer.write(b"Test record 3")
         print("✅ Successfully wrote records")
-    
+
     # Read the records back
-    with RecordReader(temp_path) as reader:
-        records = [record.to_bytes() for record in reader]
+    with RecordReaderConfig(temp_path) as reader:
+        records = [bytes(record) for record in reader]
         print("✅ Successfully read records:", records)
 
+    print("✅ Successfully counted records:", RecordReaderConfig.count_records(temp_path))
 
-    
-    print("✅ Successfully counted records:", RecordReader.count_records(temp_path))
-    
     # Test zstd compression functionality (new in v0.6.0)
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         zstd_temp_path = tmp.name
-    
+
     # Test zstd compression
-    with RecordWriter(zstd_temp_path, compression="zstd") as writer:
-        writer.write_record(b"Compressed record 1")
-        writer.write_record(b"Compressed record 2" * 100)  # Repetitive data
+    with RecordWriterConfig(zstd_temp_path, compression=Zstd(3)) as writer:
+        writer.write(b"Compressed record 1")
+        writer.write(b"Compressed record 2" * 100)  # Repetitive data
         print("✅ Successfully wrote records with zstd compression")
-    
+
     # Read back compressed records
-    with RecordReader(zstd_temp_path) as reader:
-        compressed_records = [record.to_bytes() for record in reader]
+    with RecordReaderConfig(zstd_temp_path) as reader:
+        compressed_records = [bytes(record) for record in reader]
         assert len(compressed_records) == 2
         assert compressed_records[0] == b"Compressed record 1"
         assert compressed_records[1] == b"Compressed record 2" * 100

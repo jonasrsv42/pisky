@@ -1,9 +1,8 @@
-use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 
 use disky::reader::CorruptionStrategy;
 
-/// Enum for corruption handling strategies (legacy)
+/// Enum for corruption handling strategies.
 #[pyclass]
 #[derive(Clone, Copy)]
 pub enum PyCorruptionStrategy {
@@ -11,14 +10,12 @@ pub enum PyCorruptionStrategy {
     Recover,
 }
 
-/// Parse corruption strategy from Python string.
-pub fn parse_corruption_strategy(s: Option<&str>) -> PyResult<Option<CorruptionStrategy>> {
-    match s {
-        Some("recover") => Ok(Some(CorruptionStrategy::Recover)),
-        Some("error") | None => Ok(None),
-        Some(other) => Err(PyIOError::new_err(format!(
-            "Unknown corruption strategy: '{}'. Use 'recover' or 'error'.",
-            other
-        ))),
+/// Convert PyCorruptionStrategy to disky's CorruptionStrategy.
+pub fn convert_corruption_strategy(
+    strategy: Option<PyCorruptionStrategy>,
+) -> Option<CorruptionStrategy> {
+    match strategy {
+        Some(PyCorruptionStrategy::Recover) => Some(CorruptionStrategy::Recover),
+        Some(PyCorruptionStrategy::Error) | None => None,
     }
 }

@@ -1,13 +1,11 @@
 """Single-file reader and writer with config-based API."""
 
 from .reader import RecordReader, RecordReaderConfig
-from .writer import RecordWriter, RecordWriterConfig, Zstd, Uncompressed
+from .writer import RecordWriter, RecordWriterConfig
 
 __all__ = [
     "RecordReader",
     "RecordReaderConfig",
     "RecordWriter",
     "RecordWriterConfig",
-    "Zstd",
-    "Uncompressed",
 ]

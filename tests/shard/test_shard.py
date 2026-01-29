@@ -15,7 +15,7 @@ class TestShardWriter:
         with tempfile.TemporaryDirectory() as tmpdir:
             sink = writer.FileShards.from_pattern(tmpdir, "shard")
 
-            with writer.Sequential(sink) as w:
+            with writer.SequentialConfig(sink) as w:
                 w.write(b"hello")
                 w.write(b"world")
 
@@ -28,7 +28,7 @@ class TestShardWriter:
             sink = writer.FileShards.from_pattern(tmpdir, "shard")
 
             # Small max_shard_bytes to force rotation
-            with writer.Sequential(sink, max_shard_bytes=50) as w:
+            with writer.SequentialConfig(sink, max_shard_bytes=50) as w:
                 for i in range(10):
                     w.write(f"record_{i:04d}".encode())
 
@@ -47,7 +47,7 @@ class TestShardReader:
             sink = writer.FileShards.from_pattern(tmpdir, "shard")
             expected = [f"record_{i}".encode() for i in range(100)]
 
-            with writer.Sequential(sink, max_shard_bytes=100) as w:
+            with writer.SequentialConfig(sink, max_shard_bytes=100) as w:
                 for record in expected:
                     w.write(record)
 
@@ -56,7 +56,7 @@ class TestShardReader:
             seq = order.Sequential(shards)
 
             records = []
-            with reader.Sequential(seq) as r:
+            with reader.SequentialConfig(seq) as r:
                 for record in r:
                     records.append(bytes(record))
 
@@ -69,7 +69,7 @@ class TestShardReader:
             sink = writer.FileShards.from_pattern(tmpdir, "shard")
             expected = [f"record_{i}".encode() for i in range(20)]
 
-            with writer.Sequential(sink, max_shard_bytes=50) as w:
+            with writer.SequentialConfig(sink, max_shard_bytes=50) as w:
                 for record in expected:
                     w.write(record)
 
@@ -78,7 +78,7 @@ class TestShardReader:
             seq = order.Sequential(shards)
 
             records = []
-            with reader.RoundRobin(seq) as r:
+            with reader.RoundRobinConfig(seq) as r:
                 for record in r:
                     records.append(bytes(record))
 
@@ -92,7 +92,7 @@ class TestShardReader:
             sink = writer.FileShards.from_pattern(tmpdir, "shard")
             expected = [f"record_{i}".encode() for i in range(30)]
 
-            with writer.Sequential(sink, max_shard_bytes=50) as w:
+            with writer.SequentialConfig(sink, max_shard_bytes=50) as w:
                 for record in expected:
                     w.write(record)
 
@@ -105,7 +105,7 @@ class TestShardReader:
             seq = order.Sequential(shards)
 
             records = []
-            with reader.RoundRobin(seq, max_active=2) as r:
+            with reader.RoundRobinConfig(seq, max_active=2) as r:
                 for record in r:
                     records.append(bytes(record))
 
@@ -119,7 +119,7 @@ class TestShardReader:
             sink = writer.FileShards.from_pattern(tmpdir, "shard")
             expected = [f"record_{i}".encode() for i in range(20)]
 
-            with writer.Sequential(sink, max_shard_bytes=50) as w:
+            with writer.SequentialConfig(sink, max_shard_bytes=50) as w:
                 for record in expected:
                     w.write(record)
 
@@ -128,7 +128,7 @@ class TestShardReader:
             rand = order.RandomRepeat(shards)
 
             records = []
-            with reader.RoundRobin(rand, max_active=2) as r:
+            with reader.RoundRobinConfig(rand, max_active=2) as r:
                 for i, record in enumerate(r):
                     records.append(bytes(record))
                     if i >= 49:  # Take first 50 records
@@ -147,7 +147,7 @@ class TestShardReader:
             sink = writer.FileShards.from_pattern(tmpdir, "shard")
             expected = [f"record_{i}".encode() for i in range(50)]
 
-            with writer.Sequential(sink, max_shard_bytes=100) as w:
+            with writer.SequentialConfig(sink, max_shard_bytes=100) as w:
                 for record in expected:
                     w.write(record)
 
@@ -156,7 +156,7 @@ class TestShardReader:
             rand = order.RandomRepeat(shards)
 
             records = []
-            with reader.Sequential(rand) as r:
+            with reader.SequentialConfig(rand) as r:
                 for i, record in enumerate(r):
                     records.append(bytes(record))
                     if i >= 99:  # Take first 100 records
@@ -177,7 +177,7 @@ class TestFileShards:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create some shard files
             sink = writer.FileShards.from_pattern(tmpdir, "data")
-            with writer.Sequential(sink) as w:
+            with writer.SequentialConfig(sink) as w:
                 w.write(b"test")
 
             shards = reader.FileShards.from_pattern(tmpdir, "data")
@@ -188,7 +188,7 @@ class TestFileShards:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create some shard files
             sink = writer.FileShards.from_prefix(os.path.join(tmpdir, "data"))
-            with writer.Sequential(sink) as w:
+            with writer.SequentialConfig(sink) as w:
                 w.write(b"test")
 
             shards = reader.FileShards.from_prefix(os.path.join(tmpdir, "data"))
@@ -199,7 +199,7 @@ class TestFileShards:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create some shard files
             sink = writer.FileShards.from_pattern(tmpdir, "shard")
-            with writer.Sequential(sink, max_shard_bytes=20) as w:
+            with writer.SequentialConfig(sink, max_shard_bytes=20) as w:
                 for i in range(5):
                     w.write(f"record_{i}".encode())
 
@@ -214,7 +214,7 @@ class TestFileShards:
             seq = order.Sequential(shards)
 
             records = []
-            with reader.Sequential(seq) as r:
+            with reader.SequentialConfig(seq) as r:
                 for record in r:
                     records.append(bytes(record))
 
@@ -229,14 +229,14 @@ class TestWriterAppend:
         with tempfile.TemporaryDirectory() as tmpdir:
             # First write
             sink1 = writer.FileShards.from_pattern(tmpdir, "shard")
-            with writer.Sequential(sink1) as w:
+            with writer.SequentialConfig(sink1) as w:
                 w.write(b"first")
 
             assert os.path.exists(os.path.join(tmpdir, "shard_0"))
 
             # Append write
             sink2 = writer.FileShards.from_pattern(tmpdir, "shard", append=True)
-            with writer.Sequential(sink2) as w:
+            with writer.SequentialConfig(sink2) as w:
                 w.write(b"second")
 
             assert os.path.exists(os.path.join(tmpdir, "shard_1"))
@@ -246,7 +246,7 @@ class TestWriterAppend:
             seq = order.Sequential(shards)
 
             records = []
-            with reader.Sequential(seq) as r:
+            with reader.SequentialConfig(seq) as r:
                 for record in r:
                     records.append(bytes(record))
 

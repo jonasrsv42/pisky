@@ -1,14 +1,13 @@
 """Single-file record reader with config-based API."""
 
-from typing import Any
-from pathlib import Path
 from os import PathLike
+from pathlib import Path
+from typing import Any
 
-from .._pisky import (
-    RecordReaderConfig as _RecordReaderConfig,
-    RecordReader as _RecordReader,
-)
+from .._pisky import RecordReader as _RecordReader
+from .._pisky import RecordReaderConfig as _RecordReaderConfig
 from ..bytes import Bytes
+from ..corruption import CorruptionStrategy
 
 PathType = str | Path | PathLike[Any]
 
@@ -56,27 +55,32 @@ class RecordReaderConfig:
     until you enter the context manager.
 
     Example:
-        from pisky import RecordReaderConfig
+        from pisky import RecordReaderConfig, CorruptionStrategy
 
         with RecordReaderConfig("data.disky") as reader:
+            for record in reader:
+                process(bytes(record))
+
+        # With corruption recovery
+        with RecordReaderConfig("data.disky", CorruptionStrategy.RECOVER) as reader:
             for record in reader:
                 process(bytes(record))
 
     Args:
         path: Path to the disky file.
         corruption_strategy: How to handle corrupted data.
-            - None or "error": Raise an error on corruption (default)
-            - "recover": Skip corrupted chunks and continue
+            - CorruptionStrategy.ERROR: Raise an error on corruption (default)
+            - CorruptionStrategy.RECOVER: Skip corrupted chunks and continue
     """
 
     def __init__(
         self,
         path: PathType,
-        corruption_strategy: str | None = None,
+        corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
     ) -> None:
         self._path = str(path)
         self._corruption_strategy = corruption_strategy
-        self._config = _RecordReaderConfig(self._path, corruption_strategy)
+        self._config = _RecordReaderConfig(self._path, corruption_strategy._to_py())
 
     def __enter__(self) -> RecordReader:
         inner = self._config.__enter__()
@@ -89,3 +93,24 @@ class RecordReaderConfig:
         exc_tb: Any,
     ) -> bool:
         return False
+
+    @staticmethod
+    def count_records(
+        path: PathType,
+        corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
+    ) -> int:
+        """
+        Count records in a file without fully loading them into memory.
+
+        Args:
+            path: Path to the disky file.
+            corruption_strategy: How to handle corrupted data.
+
+        Returns:
+            Number of records in the file.
+        """
+        count = 0
+        with RecordReaderConfig(path, corruption_strategy) as reader:
+            for _ in reader:
+                count += 1
+        return count

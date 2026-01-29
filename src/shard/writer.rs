@@ -15,8 +15,15 @@ use crate::compression::PyCompression;
 /// How the shard sink was specified.
 #[derive(Clone)]
 enum ShardSink {
-    Prefix { prefix: String, append: bool },
-    Pattern { dir: String, prefix: String, append: bool },
+    Prefix {
+        prefix: String,
+        append: bool,
+    },
+    Pattern {
+        dir: String,
+        prefix: String,
+        append: bool,
+    },
 }
 
 impl ShardSink {
@@ -28,14 +35,22 @@ impl ShardSink {
                 if *append {
                     builder = builder.append();
                 }
-                builder.build().map_err(|e| PyIOError::new_err(e.to_string()))
+                builder
+                    .build()
+                    .map_err(|e| PyIOError::new_err(e.to_string()))
             }
-            ShardSink::Pattern { dir, prefix, append } => {
+            ShardSink::Pattern {
+                dir,
+                prefix,
+                append,
+            } => {
                 let mut builder = FileShardsBuilder::new(dir, prefix);
                 if *append {
                     builder = builder.append();
                 }
-                builder.build().map_err(|e| PyIOError::new_err(e.to_string()))
+                builder
+                    .build()
+                    .map_err(|e| PyIOError::new_err(e.to_string()))
             }
         }
     }

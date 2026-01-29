@@ -172,35 +172,13 @@ class TestRecordWriterConfig:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    def test_flush(self):
-        """Test explicit flush."""
-        with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
-            temp_path = temp.name
-
-        try:
-            with RecordWriterConfig(temp_path) as writer:
-                writer.write(b"before flush")
-                writer.flush()
-                writer.write(b"after flush")
-
-            records = []
-            with RecordReaderConfig(temp_path) as reader:
-                for record in reader:
-                    records.append(bytes(record))
-
-            assert records == [b"before flush", b"after flush"]
-        finally:
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
-
-
 class TestZstdRepr:
     """Test compression type representations."""
 
     def test_zstd_repr(self):
         """Test Zstd repr."""
-        assert repr(Zstd(3)) == "Zstd(3)"
-        assert repr(Zstd(9)) == "Zstd(9)"
+        assert repr(Zstd(3)) == "Zstd(level=3)"
+        assert repr(Zstd(9)) == "Zstd(level=9)"
 
     def test_uncompressed_repr(self):
         """Test Uncompressed repr."""

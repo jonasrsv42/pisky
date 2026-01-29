@@ -13,16 +13,17 @@ from pisky.single import (
     RecordReaderConfig,
     RecordWriter,
     RecordWriterConfig,
-    Zstd,
-    Uncompressed,
 )
 from pisky.bytes import Bytes
 
-# Import CorruptionStrategy, set_log_level, and PathType from common module
-from .common import CorruptionStrategy, set_log_level, PathType
+# Import compression types
+from .compression import Zstd, Uncompressed
 
-# Import MultiThreadedReader and MultiThreadedWriter from multi_threaded module
-from .multi_threaded import MultiThreadedReader, MultiThreadedWriter
+# Import CorruptionStrategy and PathType from corruption module
+from .corruption import CorruptionStrategy, PathType
+
+# Import logging utilities
+from .logging import set_log_level
 
 # Import Globable and expand_dirs from expand module
 from .expand import Globable, expand_dirs
@@ -41,9 +42,7 @@ __all__ = [
     "Zstd",
     "Uncompressed",
     "Bytes",
-    # Legacy classes
-    "MultiThreadedWriter",
-    "MultiThreadedReader",
+    # Common
     "CorruptionStrategy",
     "Globable",
     # Functions

@@ -1,6 +1,10 @@
 //! Shard reader PyO3 bindings.
 //!
 //! We use a macro to generate 4 concrete reader types (2 reading strategies × 2 iteration orders).
+//!
+//! This file is a bit awkward because we use generics for our shard readers which do not translate
+//! well over the python boundary. Same for multithreaded - so we use macros to generate the
+//! combinations of concrete types and make it pretty on the python side.
 
 use std::fs::File;
 
@@ -14,7 +18,7 @@ use disky::shard::reader::{
 };
 use disky::shard::source::{FileShards, RandomRepeatingShardSource, SequentialShardSource};
 
-use crate::corruption::parse_corruption_strategy;
+use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
 
 use super::source::PyFileShards;
 
@@ -40,11 +44,14 @@ macro_rules! define_seq {
         impl $config_name {
             #[new]
             #[pyo3(signature = (shards, corruption_strategy=None))]
-            fn new(shards: PyFileShards, corruption_strategy: Option<&str>) -> PyResult<Self> {
-                Ok(Self {
+            fn new(
+                shards: PyFileShards,
+                corruption_strategy: Option<PyCorruptionStrategy>,
+            ) -> Self {
+                Self {
                     shards,
-                    corruption_strategy: parse_corruption_strategy(corruption_strategy)?,
-                })
+                    corruption_strategy: convert_corruption_strategy(corruption_strategy),
+                }
             }
 
             fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<$reader_name>> {
@@ -53,11 +60,15 @@ macro_rules! define_seq {
                 let source = $order_source::new(file_shards);
                 let mut builder = $shard_reader_config::new(source);
                 if let Some(s) = config.corruption_strategy {
-                    builder = builder.reader_options(
-                        RecordReaderOptions::default().with_corruption_strategy(s),
-                    );
+                    builder = builder
+                        .reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
                 }
-                Py::new(py, $reader_name { reader: builder.build() })
+                Py::new(
+                    py,
+                    $reader_name {
+                        reader: builder.build(),
+                    },
+                )
             }
 
             fn __exit__(
@@ -117,14 +128,14 @@ macro_rules! define_rr {
             #[pyo3(signature = (shards, corruption_strategy=None, max_active=None))]
             fn new(
                 shards: PyFileShards,
-                corruption_strategy: Option<&str>,
+                corruption_strategy: Option<PyCorruptionStrategy>,
                 max_active: Option<usize>,
-            ) -> PyResult<Self> {
-                Ok(Self {
+            ) -> Self {
+                Self {
                     shards,
-                    corruption_strategy: parse_corruption_strategy(corruption_strategy)?,
+                    corruption_strategy: convert_corruption_strategy(corruption_strategy),
                     max_active,
-                })
+                }
             }
 
             fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<$reader_name>> {
@@ -133,14 +144,15 @@ macro_rules! define_rr {
                 let source = $order_source::new(file_shards);
                 let mut builder = $shard_reader_config::new(source);
                 if let Some(s) = config.corruption_strategy {
-                    builder = builder.reader_options(
-                        RecordReaderOptions::default().with_corruption_strategy(s),
-                    );
+                    builder = builder
+                        .reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
                 }
                 if let Some(max) = config.max_active {
                     builder = builder.max_active(max);
                 }
-                let reader = builder.build().map_err(|e| PyIOError::new_err(e.to_string()))?;
+                let reader = builder
+                    .build()
+                    .map_err(|e| PyIOError::new_err(e.to_string()))?;
                 Py::new(py, $reader_name { reader })
             }
 

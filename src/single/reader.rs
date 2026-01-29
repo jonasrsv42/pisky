@@ -8,7 +8,7 @@ use disky::reader::{
     RecordReaderOptions,
 };
 
-use crate::corruption::parse_corruption_strategy;
+use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
 
 /// Configuration for a single-file record reader.
 ///
@@ -30,11 +30,11 @@ pub struct PyRecordReaderConfig {
 impl PyRecordReaderConfig {
     #[new]
     #[pyo3(signature = (path, corruption_strategy=None))]
-    fn new(path: &str, corruption_strategy: Option<&str>) -> PyResult<Self> {
-        Ok(Self {
+    fn new(path: &str, corruption_strategy: Option<PyCorruptionStrategy>) -> Self {
+        Self {
             path: PathBuf::from(path),
-            corruption_strategy: parse_corruption_strategy(corruption_strategy)?,
-        })
+            corruption_strategy: convert_corruption_strategy(corruption_strategy),
+        }
     }
 
     fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyRecordReader>> {
@@ -64,8 +64,8 @@ pub struct PyRecordReader {
 
 impl PyRecordReader {
     fn from_config(config: &PyRecordReaderConfig) -> PyResult<Self> {
-        let file =
-            File::open(&config.path).map_err(|e| PyIOError::new_err(format!("{}: {}", config.path.display(), e)))?;
+        let file = File::open(&config.path)
+            .map_err(|e| PyIOError::new_err(format!("{}: {}", config.path.display(), e)))?;
 
         let mut builder = RustReaderConfig::new(file);
 

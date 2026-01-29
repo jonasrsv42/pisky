@@ -5,11 +5,9 @@ from typing import Any
 from pisky._pisky import (
     WriterFileShards as _FileShards,
     SequentialWriterConfig as _SeqWriterConfig,
-    Zstd,
-    Uncompressed,
+    SequentialWriter as _SeqWriter,
 )
-
-Compression = Zstd | Uncompressed
+from pisky.compression import Compression, Zstd, Uncompressed
 
 
 class FileShards:
@@ -38,20 +36,39 @@ class FileShards:
         return FileShards(_FileShards.from_prefix(prefix, append))
 
 
-class Sequential:
+class SequentialWriter:
+    """
+    Active sequential shard writer.
+
+    Created by entering a SequentialConfig context manager.
+    """
+
+    def __init__(self, inner: _SeqWriter) -> None:
+        self._inner = inner
+
+    def write(self, data: bytes) -> None:
+        """Write a record to the current shard."""
+        self._inner.write(data)
+
+    def _close(self) -> None:
+        """Close the writer. Called automatically on context exit."""
+        self._inner.close()
+
+
+class SequentialConfig:
     """
     Sequential shard writer - writes to shards, rotating when max_shard_bytes reached.
 
     Example:
         sink = FileShards.from_pattern("/data", "shard")
-        with writer.Sequential(sink, max_shard_bytes=1_000_000_000) as w:
+        with writer.SequentialConfig(sink, max_shard_bytes=1_000_000_000) as w:
             w.write(b"hello")
     """
 
     def __init__(
         self,
         shards: FileShards,
-        compression: Compression | None = None,
+        compression: Compression = Uncompressed(),
         max_shard_bytes: int | None = None,
     ) -> None:
         self._shards = shards
@@ -60,13 +77,15 @@ class Sequential:
         self._config: Any = None
         self._writer: Any = None
 
-    def __enter__(self) -> Any:
+    def __enter__(self) -> SequentialWriter:
+        py_compression = self._compression._to_py()
         self._config = _SeqWriterConfig(
             self._shards._inner,
-            self._compression,
+            py_compression,
             self._max_shard_bytes,
         )
-        self._writer = self._config.__enter__()
+        inner = self._config.__enter__()
+        self._writer = SequentialWriter(inner)
         return self._writer
 
     def __exit__(
@@ -76,7 +95,7 @@ class Sequential:
         exc_tb: Any,
     ) -> bool:
         if self._writer is not None:
-            self._writer.close()
+            self._writer._close()
         self._writer = None
         self._config = None
         return False

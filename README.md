@@ -29,187 +29,193 @@ maturin develop
 ### Writing Records
 
 ```python
-from pisky import RecordWriter
+from pisky import RecordWriterConfig
 
-# Write records to a file
-with RecordWriter("output.disky") as writer:
-    writer.write_record(b"Record 1")
-    writer.write_record(b"Record 2")
-    writer.write_record(b"Record 3")
+with RecordWriterConfig("output.disky") as writer:
+    writer.write(b"Record 1")
+    writer.write(b"Record 2")
+    writer.write(b"Record 3")
 ```
 
 ### Reading Records
 
 ```python
-from pisky import RecordReader
+from pisky import RecordReaderConfig
 
-# Read records from a file
-with RecordReader("input.disky") as reader:
+with RecordReaderConfig("input.disky") as reader:
     for record in reader:
-        # Note: record is a custom Bytes object with zero-copy semantics
-        # Use to_bytes() to convert to a standard Python bytes object
-        python_bytes = record.to_bytes()
-        print(f"Record: {python_bytes.decode('utf-8')}")
+        print(f"Record: {bytes(record).decode('utf-8')}")
 ```
 
-### Writing Records from a List
+### Writing with Compression
 
 ```python
-from pisky import RecordWriter
+from pisky import RecordWriterConfig, Zstd
 
-# List of records to write
-records = [
-    b"Record A",
-    b"Record B",
-    b"Record C",
-]
-
-# Write all records to a file
-with RecordWriter("output.disky") as writer:
-    for record in records:
-        writer.write_record(record)
+# Write with zstd compression (level 1-22, default 3)
+with RecordWriterConfig("output.disky", compression=Zstd(3)) as writer:
+    writer.write(b"Compressed record 1")
+    writer.write(b"Compressed record 2")
 ```
 
-### Manual Reading and Writing
-
-If you prefer not to use a context manager, you can manually manage the resources:
+### Reading with Corruption Recovery
 
 ```python
-from pisky import RecordWriter, RecordReader
+from pisky import RecordReaderConfig, CorruptionStrategy
 
-# Writing manually
-writer = RecordWriter("output.disky")
-try:
-    writer.write_record(b"Record 1")
-    writer.write_record(b"Record 2")
-    writer.flush()  # Flush data to disk
-finally:
-    writer.close()  # Always close the writer
-
-# Reading manually
-reader = RecordReader("output.disky")
-try:
-    while True:
-        record = reader.next_record()
-        if record is None:
-            break  # End of file
-        print(record.to_bytes().decode('utf-8'))
-finally:
-    reader.close()  # Explicitly close the reader
+# Skip corrupted chunks instead of raising errors
+with RecordReaderConfig("input.disky", CorruptionStrategy.RECOVER) as reader:
+    for record in reader:
+        print(bytes(record))
 ```
 
-## Advanced Usage: Multi-Threaded API
+### Counting Records
 
-Pisky also provides a multi-threaded API for high-throughput scenarios. This API allows for parallel reading and writing of records across multiple shards.
+```python
+from pisky import RecordReaderConfig
+
+count = RecordReaderConfig.count_records("input.disky")
+print(f"File contains {count} records")
+```
+
+## Sharded Files
+
+For large datasets, Pisky supports reading and writing to multiple shard files.
+
+### Sequential Shard Writing
+
+```python
+from pisky.shard import writer, order
+
+# Create a shard sink
+sink = writer.FileShards.from_pattern("/data", "shard")
+
+# Write with automatic rotation at 1GB per shard
+with writer.SequentialConfig(sink, max_shard_bytes=1_000_000_000) as w:
+    for i in range(100000):
+        w.write(f"Record {i}".encode())
+```
+
+### Sequential Shard Reading
+
+```python
+from pisky.shard import reader, order
+from pisky.shard.file_shards import FileShards
+
+# Create shard source
+shards = FileShards.from_pattern("/data", "shard")
+
+# Read shards sequentially (one at a time)
+seq = order.Sequential(shards)
+with reader.SequentialConfig(seq) as r:
+    for record in r:
+        print(bytes(record))
+```
+
+### Round-Robin Shard Reading
+
+```python
+from pisky.shard import reader, order
+from pisky.shard.file_shards import FileShards
+
+shards = FileShards.from_pattern("/data", "shard")
+
+# Read one record from each shard in rotation
+seq = order.Sequential(shards)
+with reader.RoundRobinConfig(seq, max_active=4) as r:
+    for record in r:
+        print(bytes(record))
+```
+
+### Infinite Random Reading (for ML training)
+
+```python
+from pisky.shard import reader, order
+from pisky.shard.file_shards import FileShards
+
+shards = FileShards.from_pattern("/data", "shard")
+
+# Read shards in random order, repeating forever
+rand = order.RandomRepeat(shards)
+with reader.SequentialConfig(rand) as r:
+    for i, record in enumerate(r):
+        if i >= 10000:  # Stop after 10k records
+            break
+        process(bytes(record))
+```
+
+## Multi-Threaded API
+
+For high-throughput scenarios, Pisky provides a multi-threaded API that reads/writes in parallel using worker threads.
 
 ### Multi-Threaded Writing
 
 ```python
-from pisky import MultiThreadedWriter
-import tempfile
-import os
+from pisky.multi_threaded import writer
+from pisky import Zstd
 
-with tempfile.TemporaryDirectory() as temp_dir:
-    # Multi-threaded writing with default settings
-    with MultiThreadedWriter.new_with_shards(dir_path=temp_dir) as writer:
-        for i in range(10000):
-            writer.write_record(f"Record #{i}".encode('utf-8'))
-    
-    # List the created shard files 
-    shard_files = [f for f in os.listdir(temp_dir) if f.startswith("shard_")]
-    print(f"Created {len(shard_files)} shard files")
+sink = writer.FileShards.from_pattern("/data", "shard")
+
+with writer.MultiThreadedConfig(
+    sink,
+    num_shards=4,           # Number of concurrent shards
+    compression=Zstd(3),    # Optional compression
+) as w:
+    for i in range(100000):
+        w.write(f"Record {i}".encode())
 ```
 
 ### Multi-Threaded Reading
 
 ```python
-from pisky import MultiThreadedReader
-import tempfile
+from pisky.multi_threaded import reader
+from pisky.shard import order
+from pisky.shard.file_shards import FileShards
 
-with tempfile.TemporaryDirectory() as temp_dir:
-    # Assuming temp_dir contains sharded files
-    # Read using multi-threaded reader
-    with MultiThreadedReader.new_with_shards(dir_path=temp_dir) as reader:
-        count = 0
-        for record in reader:
-            count += 1
-            if count <= 5:  # Print just a few samples
-                print(f"Sample: {record.to_bytes().decode('utf-8')}")
-        print(f"Read {count} records")
+shards = FileShards.from_pattern("/data", "shard")
+
+# Sequential order (finite)
+seq = order.Sequential(shards)
+with reader.MultiThreadedConfig(seq, num_parallel=4, worker_threads=2) as r:
+    for record in r:
+        process(bytes(record))
+
+# Random repeating order (infinite, for ML training)
+rand = order.RandomRepeat(shards)
+with reader.MultiThreadedConfig(rand, num_parallel=4) as r:
+    for i, record in enumerate(r):
+        if i >= 100000:
+            break
+        process(bytes(record))
 ```
 
-### Custom Multi-Threaded Configuration
+## API Reference
 
-```python
-from pisky import MultiThreadedWriter, MultiThreadedReader
-import tempfile
+### Compression Types
 
-with tempfile.TemporaryDirectory() as temp_dir:
-    # Custom configuration for writer
-    with MultiThreadedWriter.new_with_shards(
-        dir_path=temp_dir,
-        prefix="custom",         # Custom file prefix (default: "shard")
-        num_shards=4,            # Number of shard files to create (default: 2)
-        worker_threads=8,        # Number of worker threads (default: auto)
-        task_queue_capacity=5000,# Task queue capacity (default: 2000)
-        enable_auto_sharding=True,# Enable auto-sharding (default: True)
-        append=False,            # Append mode (default: True)
-    ) as writer:
-        for i in range(1000):
-            writer.write_record(f"Record #{i}".encode('utf-8'))
-    
-    # Custom configuration for reader
-    with MultiThreadedReader.new_with_shards(
-        dir_path=temp_dir,
-        prefix="custom",         # Must match the writer's prefix
-        num_shards=4,            # Must match the writer's num_shards
-        worker_threads=4,        # Number of worker threads (default: 1)
-        queue_size_mb=1024,      # Queue size in MB (default: 10GB)
-    ) as reader:
-        for record in reader:
-            # Process records...
-            pass
-```
+- `Zstd(level=3)` - Zstandard compression (level 1-22)
+- `Uncompressed()` - No compression
+
+### Corruption Strategies
+
+- `CorruptionStrategy.ERROR` - Raise error on corruption (default)
+- `CorruptionStrategy.RECOVER` - Skip corrupted chunks and continue
+
+### Shard Orders
+
+- `order.Sequential(shards)` - Read shards in order, stops at end
+- `order.RandomRepeat(shards)` - Read shards randomly, repeats forever
 
 ## Development
-
-### Setting up Development Environment
-
-```bash
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install dev dependencies
-pip install -e ".[dev]"
-
-# Build the extension in development mode
-maturin develop
-```
-
-### Type Checking
-
-Pisky includes type annotations and supports static type checking with mypy. When using Pisky in your project, mypy will automatically recognize and validate the types.
-
-```bash
-# Install mypy
-pip install mypy
-
-# Run mypy on your project that uses pisky
-mypy your_project.py
-```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-python -m pytest
+pytest
 
 # Run with verbose output
-python -m pytest -v
-
-# Run a specific test file
-python -m pytest tests/test_pisky.py
+pytest -v
 ```
 
 ## License
