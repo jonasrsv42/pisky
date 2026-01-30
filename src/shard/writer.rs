@@ -14,7 +14,7 @@ use crate::compression::PyCompression;
 
 /// How the shard sink was specified.
 #[derive(Clone)]
-enum ShardSink {
+pub enum ShardSink {
     Prefix {
         prefix: String,
         append: bool,
@@ -27,7 +27,7 @@ enum ShardSink {
 }
 
 impl ShardSink {
-    fn build(&self) -> PyResult<disky::shard::sink::FileShards> {
+    pub fn build(&self) -> PyResult<disky::shard::sink::FileShards> {
         match self {
             ShardSink::Prefix { prefix, append } => {
                 let mut builder = FileShardsBuilder::from_prefix(prefix)
@@ -67,7 +67,7 @@ impl ShardSink {
 #[pyclass(name = "WriterFileShards")]
 #[derive(Clone)]
 pub struct PyFileShards {
-    sink: ShardSink,
+    pub sink: ShardSink,
 }
 
 #[pymethods]

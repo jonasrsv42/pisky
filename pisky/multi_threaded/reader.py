@@ -73,22 +73,25 @@ class MultiThreadedConfig:
     def __enter__(self) -> Any:
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
-        if isinstance(self._order, Sequential):
-            self._config = _MTSeqConfig(
-                shards,
-                self._num_parallel,
-                self._worker_threads,
-                self._queue_size_mb,
-                py_strategy,
-            )
-        else:
-            self._config = _MTRandConfig(
-                shards,
-                self._num_parallel,
-                self._worker_threads,
-                self._queue_size_mb,
-                py_strategy,
-            )
+        match self._order:
+            case Sequential():
+                self._config = _MTSeqConfig(
+                    shards,
+                    self._num_parallel,
+                    self._worker_threads,
+                    self._queue_size_mb,
+                    py_strategy,
+                )
+            case RandomRepeat():
+                self._config = _MTRandConfig(
+                    shards,
+                    self._num_parallel,
+                    self._worker_threads,
+                    self._queue_size_mb,
+                    py_strategy,
+                )
+            case _:
+                raise TypeError(f"Unknown order type: {type(self._order)}")
         self._reader = self._config.__enter__()
         return self._reader
 

@@ -6,6 +6,7 @@ mod compression;
 mod multi_threaded;
 mod shard;
 mod single;
+mod tree;
 
 // Shared utilities
 mod corruption;
@@ -13,18 +14,18 @@ mod logging;
 
 // New API types
 use compression::{PyUncompressed, PyZstd};
-use multi_threaded::writer::PyFileShards as PyMTFileShards;
 use multi_threaded::{
-    PyMultiThreadedReaderRandOrder, PyMultiThreadedReaderRandOrderReader,
-    PyMultiThreadedReaderSeqOrder, PyMultiThreadedReaderSeqOrderReader,
-    PyMultiThreadedWriterConfig, PyMultiThreadedWriterInstance,
+    PyMultiThreadedReader, PyMultiThreadedReaderRandOrderConfig,
+    PyMultiThreadedReaderSeqOrderConfig, PyMultiThreadedWriterConfig,
+    PyMultiThreadedWriterInstance,
 };
 use shard::{
-    PyRRReaderRandOrder, PyRRReaderRandOrderReader, PyRRReaderSeqOrder, PyRRReaderSeqOrderReader,
-    PyReaderFileShards, PySeqReaderRandOrder, PySeqReaderRandOrderReader, PySeqReaderSeqOrder,
-    PySeqReaderSeqOrderReader, PySequentialWriter, PySequentialWriterConfig, PyWriterFileShards,
+    PyRRReaderRandOrderConfig, PyRRReaderSeqOrderConfig, PyReaderFileShards,
+    PySeqReaderRandOrderConfig, PySeqReaderSeqOrderConfig, PySequentialWriter,
+    PySequentialWriterConfig, PyShardReader, PyWriterFileShards,
 };
 use single::{PyRecordReader, PyRecordReaderConfig, PyRecordWriter, PyRecordWriterConfig};
+use tree::{PyRoundRobinConfig, PyTreeReader};
 
 // Legacy types
 use corruption::PyCorruptionStrategy;
@@ -44,35 +45,34 @@ fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyZstd>()?;
     m.add_class::<PyUncompressed>()?;
 
-    // New config-based API - sharded readers (4 combinations)
+    // New config-based API - sharded readers (4 configs + 1 shared reader)
     m.add_class::<PyReaderFileShards>()?;
-    m.add_class::<PySeqReaderSeqOrder>()?;
-    m.add_class::<PySeqReaderSeqOrderReader>()?;
-    m.add_class::<PySeqReaderRandOrder>()?;
-    m.add_class::<PySeqReaderRandOrderReader>()?;
-    m.add_class::<PyRRReaderSeqOrder>()?;
-    m.add_class::<PyRRReaderSeqOrderReader>()?;
-    m.add_class::<PyRRReaderRandOrder>()?;
-    m.add_class::<PyRRReaderRandOrderReader>()?;
+    m.add_class::<PySeqReaderSeqOrderConfig>()?;
+    m.add_class::<PySeqReaderRandOrderConfig>()?;
+    m.add_class::<PyRRReaderSeqOrderConfig>()?;
+    m.add_class::<PyRRReaderRandOrderConfig>()?;
+    m.add_class::<PyShardReader>()?;
 
     // New config-based API - sharded writers
     m.add_class::<PyWriterFileShards>()?;
     m.add_class::<PySequentialWriterConfig>()?;
     m.add_class::<PySequentialWriter>()?;
 
-    // New config-based API - multi-threaded readers
-    m.add_class::<PyMultiThreadedReaderSeqOrder>()?;
-    m.add_class::<PyMultiThreadedReaderSeqOrderReader>()?;
-    m.add_class::<PyMultiThreadedReaderRandOrder>()?;
-    m.add_class::<PyMultiThreadedReaderRandOrderReader>()?;
+    // New config-based API - multi-threaded readers (2 configs + 1 shared reader)
+    m.add_class::<PyMultiThreadedReaderSeqOrderConfig>()?;
+    m.add_class::<PyMultiThreadedReaderRandOrderConfig>()?;
+    m.add_class::<PyMultiThreadedReader>()?;
 
-    // New config-based API - multi-threaded writers
-    m.add_class::<PyMTFileShards>()?;
+    // New config-based API - multi-threaded writers (uses PyWriterFileShards from sharded writers)
     m.add_class::<PyMultiThreadedWriterConfig>()?;
     m.add_class::<PyMultiThreadedWriterInstance>()?;
 
     // Legacy classes
     m.add_class::<PyCorruptionStrategy>()?;
+
+    // Tree-based composition API
+    m.add_class::<PyRoundRobinConfig>()?;
+    m.add_class::<PyTreeReader>()?;
 
     // Add functions to the module
     m.add_function(wrap_pyfunction!(set_log_level, m)?)?;

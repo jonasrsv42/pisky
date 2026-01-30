@@ -17,16 +17,15 @@ pub enum ShardSpec {
 
 impl ShardSpec {
     pub fn build(&self) -> PyResult<FileShards> {
+        self.build_disky()
+            .map_err(|e| PyIOError::new_err(e.to_string()))
+    }
+
+    pub fn build_disky(&self) -> disky::error::Result<FileShards> {
         match self {
-            ShardSpec::Prefix(prefix) => {
-                FileShards::from_prefix(prefix).map_err(|e| PyIOError::new_err(e.to_string()))
-            }
-            ShardSpec::Pattern { dir, prefix } => {
-                FileShards::from_pattern(dir, prefix).map_err(|e| PyIOError::new_err(e.to_string()))
-            }
-            ShardSpec::Paths(paths) => {
-                FileShards::new(paths.clone()).map_err(|e| PyIOError::new_err(e.to_string()))
-            }
+            ShardSpec::Prefix(prefix) => FileShards::from_prefix(prefix),
+            ShardSpec::Pattern { dir, prefix } => FileShards::from_pattern(dir, prefix),
+            ShardSpec::Paths(paths) => FileShards::new(paths.clone()),
         }
     }
 }

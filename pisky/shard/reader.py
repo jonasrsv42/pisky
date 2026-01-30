@@ -9,6 +9,7 @@ from pisky._pisky import SequentialReaderSequentialOrderConfig as _SeqSeqConfig
 from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards
 from pisky.shard.order import RandomRepeat, Sequential
+from pisky.tree.node import RustNode
 
 # Re-export FileShards so users can do `from pisky.shard import reader; reader.FileShards`
 __all__ = ["FileShards", "SequentialConfig", "RoundRobinConfig", "count_records"]
@@ -61,10 +62,13 @@ class SequentialConfig:
     def __enter__(self) -> Any:
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
-        if isinstance(self._order, Sequential):
-            self._config = _SeqSeqConfig(shards, py_strategy)
-        else:
-            self._config = _SeqRandConfig(shards, py_strategy)
+        match self._order:
+            case Sequential():
+                self._config = _SeqSeqConfig(shards, py_strategy)
+            case RandomRepeat():
+                self._config = _SeqRandConfig(shards, py_strategy)
+            case _:
+                raise TypeError(f"Unknown order type: {type(self._order)}")
         self._reader = self._config.__enter__()
         return self._reader
 
@@ -77,6 +81,18 @@ class SequentialConfig:
         self._reader = None
         self._config = None
         return False
+
+    def _to_rust_node(self) -> RustNode:
+        """Convert this config to its Rust equivalent for tree composition."""
+        shards = self._order._shards._inner
+        py_strategy = self._corruption_strategy._to_py()
+        match self._order:
+            case Sequential():
+                return _SeqSeqConfig(shards, py_strategy)
+            case RandomRepeat():
+                return _SeqRandConfig(shards, py_strategy)
+            case _:
+                raise TypeError(f"Unknown order type: {type(self._order)}")
 
 
 class RoundRobinConfig:
@@ -114,10 +130,13 @@ class RoundRobinConfig:
     def __enter__(self) -> Any:
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
-        if isinstance(self._order, Sequential):
-            self._config = _RRSeqConfig(shards, py_strategy, self._max_active)
-        else:
-            self._config = _RRRandConfig(shards, py_strategy, self._max_active)
+        match self._order:
+            case Sequential():
+                self._config = _RRSeqConfig(shards, py_strategy, self._max_active)
+            case RandomRepeat():
+                self._config = _RRRandConfig(shards, py_strategy, self._max_active)
+            case _:
+                raise TypeError(f"Unknown order type: {type(self._order)}")
         self._reader = self._config.__enter__()
         return self._reader
 
@@ -130,3 +149,15 @@ class RoundRobinConfig:
         self._reader = None
         self._config = None
         return False
+
+    def _to_rust_node(self) -> RustNode:
+        """Convert this config to its Rust equivalent for tree composition."""
+        shards = self._order._shards._inner
+        py_strategy = self._corruption_strategy._to_py()
+        match self._order:
+            case Sequential():
+                return _RRSeqConfig(shards, py_strategy, self._max_active)
+            case RandomRepeat():
+                return _RRRandConfig(shards, py_strategy, self._max_active)
+            case _:
+                raise TypeError(f"Unknown order type: {type(self._order)}")

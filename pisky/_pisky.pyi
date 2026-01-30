@@ -161,8 +161,15 @@ class ReaderFileShards:
 
 
 # =============================================================================
-# Shard readers - Sequential drain
+# Shard readers (shared reader type for all configs)
 # =============================================================================
+
+class ShardReader(Iterator[bytes]):
+    """Active shard reader - shared type for all shard reader configs."""
+
+    def __iter__(self) -> "ShardReader": ...
+    def __next__(self) -> bytes: ...
+
 
 class SequentialReaderSequentialOrderConfig:
     """Sequential shard reader with sequential order."""
@@ -173,20 +180,13 @@ class SequentialReaderSequentialOrderConfig:
         corruption_strategy: PyCorruptionStrategy | None = None,
     ) -> None: ...
 
-    def __enter__(self) -> "SequentialReaderSequentialOrder": ...
+    def __enter__(self) -> ShardReader: ...
     def __exit__(
         self,
         exc_type: type | None,
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> bool: ...
-
-
-class SequentialReaderSequentialOrder(Iterator[bytes]):
-    """Active sequential reader with sequential order."""
-
-    def __iter__(self) -> "SequentialReaderSequentialOrder": ...
-    def __next__(self) -> bytes: ...
 
 
 class SequentialReaderRandomOrderConfig:
@@ -198,7 +198,7 @@ class SequentialReaderRandomOrderConfig:
         corruption_strategy: PyCorruptionStrategy | None = None,
     ) -> None: ...
 
-    def __enter__(self) -> "SequentialReaderRandomOrder": ...
+    def __enter__(self) -> ShardReader: ...
     def __exit__(
         self,
         exc_type: type | None,
@@ -206,17 +206,6 @@ class SequentialReaderRandomOrderConfig:
         exc_tb: Any,
     ) -> bool: ...
 
-
-class SequentialReaderRandomOrder(Iterator[bytes]):
-    """Active sequential reader with random order (infinite)."""
-
-    def __iter__(self) -> "SequentialReaderRandomOrder": ...
-    def __next__(self) -> bytes: ...
-
-
-# =============================================================================
-# Shard readers - Round robin
-# =============================================================================
 
 class RoundRobinReaderSequentialOrderConfig:
     """Round-robin shard reader with sequential order."""
@@ -228,20 +217,13 @@ class RoundRobinReaderSequentialOrderConfig:
         max_active: int | None = None,
     ) -> None: ...
 
-    def __enter__(self) -> "RoundRobinReaderSequentialOrder": ...
+    def __enter__(self) -> ShardReader: ...
     def __exit__(
         self,
         exc_type: type | None,
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> bool: ...
-
-
-class RoundRobinReaderSequentialOrder(Iterator[bytes]):
-    """Active round-robin reader with sequential order."""
-
-    def __iter__(self) -> "RoundRobinReaderSequentialOrder": ...
-    def __next__(self) -> bytes: ...
 
 
 class RoundRobinReaderRandomOrderConfig:
@@ -254,20 +236,13 @@ class RoundRobinReaderRandomOrderConfig:
         max_active: int | None = None,
     ) -> None: ...
 
-    def __enter__(self) -> "RoundRobinReaderRandomOrder": ...
+    def __enter__(self) -> ShardReader: ...
     def __exit__(
         self,
         exc_type: type | None,
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> bool: ...
-
-
-class RoundRobinReaderRandomOrder(Iterator[bytes]):
-    """Active round-robin reader with random order (infinite)."""
-
-    def __iter__(self) -> "RoundRobinReaderRandomOrder": ...
-    def __next__(self) -> bytes: ...
 
 
 # =============================================================================
@@ -316,8 +291,18 @@ class SequentialWriter:
 
 
 # =============================================================================
-# Multi-threaded readers
+# Multi-threaded readers (shared reader type for all configs)
 # =============================================================================
+
+class MultiThreadedReader(Iterator[bytes]):
+    """Active multi-threaded reader - shared type for all multi-threaded configs."""
+
+    def close(self) -> None: ...
+    def queued_records(self) -> int: ...
+    def queued_bytes(self) -> int: ...
+    def __iter__(self) -> "MultiThreadedReader": ...
+    def __next__(self) -> bytes: ...
+
 
 class MultiThreadedReaderSequentialOrderConfig:
     """Multi-threaded reader with sequential order."""
@@ -331,23 +316,13 @@ class MultiThreadedReaderSequentialOrderConfig:
         corruption_strategy: PyCorruptionStrategy | None = None,
     ) -> None: ...
 
-    def __enter__(self) -> "MultiThreadedReaderSequentialOrder": ...
+    def __enter__(self) -> MultiThreadedReader: ...
     def __exit__(
         self,
         exc_type: type | None,
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> bool: ...
-
-
-class MultiThreadedReaderSequentialOrder(Iterator[bytes]):
-    """Active multi-threaded reader with sequential order."""
-
-    def close(self) -> None: ...
-    def queued_records(self) -> int: ...
-    def queued_bytes(self) -> int: ...
-    def __iter__(self) -> "MultiThreadedReaderSequentialOrder": ...
-    def __next__(self) -> bytes: ...
 
 
 class MultiThreadedReaderRandomOrderConfig:
@@ -362,7 +337,7 @@ class MultiThreadedReaderRandomOrderConfig:
         corruption_strategy: PyCorruptionStrategy | None = None,
     ) -> None: ...
 
-    def __enter__(self) -> "MultiThreadedReaderRandomOrder": ...
+    def __enter__(self) -> MultiThreadedReader: ...
     def __exit__(
         self,
         exc_type: type | None,
@@ -371,40 +346,16 @@ class MultiThreadedReaderRandomOrderConfig:
     ) -> bool: ...
 
 
-class MultiThreadedReaderRandomOrder(Iterator[bytes]):
-    """Active multi-threaded reader with random order (infinite)."""
-
-    def close(self) -> None: ...
-    def queued_records(self) -> int: ...
-    def queued_bytes(self) -> int: ...
-    def __iter__(self) -> "MultiThreadedReaderRandomOrder": ...
-    def __next__(self) -> bytes: ...
-
-
 # =============================================================================
-# Multi-threaded writers
+# Multi-threaded writers (uses WriterFileShards from shard writers)
 # =============================================================================
-
-class MTWriterFileShards:
-    """File-based shard sink for multi-threaded writers."""
-
-    @staticmethod
-    def from_pattern(dir: str, prefix: str, append: bool = False) -> "MTWriterFileShards":
-        """Create from directory and prefix pattern."""
-        ...
-
-    @staticmethod
-    def from_prefix(prefix: str, append: bool = False) -> "MTWriterFileShards":
-        """Create from a path prefix."""
-        ...
-
 
 class MultiThreadedWriterConfig:
     """Configuration for multi-threaded shard writer."""
 
     def __init__(
         self,
-        shards: MTWriterFileShards,
+        shards: WriterFileShards,
         num_shards: int = 2,
         worker_threads: int | None = None,
         max_bytes_per_writer: int | None = None,
@@ -428,3 +379,27 @@ class MultiThreadedWriter:
     def write(self, data: bytes) -> None:
         """Write a record."""
         ...
+
+
+# =============================================================================
+# Tree-based composition (internal Rust types)
+# =============================================================================
+
+class RoundRobinConfig:
+    """Internal Rust round-robin config."""
+
+    def __init__(self, children: list[Any]) -> None: ...
+    def __enter__(self) -> "TreeReader": ...
+    def __exit__(
+        self,
+        exc_type: type | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool: ...
+
+
+class TreeReader(Iterator[bytes]):
+    """Internal Rust tree reader."""
+
+    def __iter__(self) -> "TreeReader": ...
+    def __next__(self) -> bytes | None: ...

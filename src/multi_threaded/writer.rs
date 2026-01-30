@@ -8,95 +8,16 @@ use pyo3::prelude::*;
 
 use disky::parallel::multi_threaded_writer::{MultiThreadedWriter, MultiThreadedWriterConfig};
 use disky::parallel::writer::{ParallelWriterConfig, ShardingConfig};
-use disky::shard::sink::FileShardsBuilder;
 use disky::writer::RecordWriterOptions;
 
 use crate::compression::PyCompression;
-
-/// How the shard sink was specified.
-#[derive(Clone)]
-pub enum ShardSink {
-    Prefix {
-        prefix: String,
-        append: bool,
-    },
-    Pattern {
-        dir: String,
-        prefix: String,
-        append: bool,
-    },
-}
-
-impl ShardSink {
-    pub fn build(&self) -> PyResult<disky::shard::sink::FileShards> {
-        match self {
-            ShardSink::Prefix { prefix, append } => {
-                let mut builder = FileShardsBuilder::from_prefix(prefix)
-                    .map_err(|e| PyIOError::new_err(e.to_string()))?;
-                if *append {
-                    builder = builder.append();
-                }
-                builder
-                    .build()
-                    .map_err(|e| PyIOError::new_err(e.to_string()))
-            }
-            ShardSink::Pattern {
-                dir,
-                prefix,
-                append,
-            } => {
-                let mut builder = FileShardsBuilder::new(dir, prefix);
-                if *append {
-                    builder = builder.append();
-                }
-                builder
-                    .build()
-                    .map_err(|e| PyIOError::new_err(e.to_string()))
-            }
-        }
-    }
-}
-
-/// A file-based shard factory for writing.
-#[pyclass(name = "MTWriterFileShards")]
-#[derive(Clone)]
-pub struct PyFileShards {
-    pub sink: ShardSink,
-}
-
-#[pymethods]
-impl PyFileShards {
-    /// Create from a path prefix (e.g., '/data/shard' -> dir='/data', prefix='shard').
-    #[staticmethod]
-    #[pyo3(signature = (prefix, append=false))]
-    fn from_prefix(prefix: &str, append: bool) -> Self {
-        Self {
-            sink: ShardSink::Prefix {
-                prefix: prefix.to_string(),
-                append,
-            },
-        }
-    }
-
-    /// Create by specifying directory and prefix separately.
-    #[staticmethod]
-    #[pyo3(signature = (dir, prefix, append=false))]
-    fn from_pattern(dir: &str, prefix: &str, append: bool) -> Self {
-        Self {
-            sink: ShardSink::Pattern {
-                dir: dir.to_string(),
-                prefix: prefix.to_string(),
-                append,
-            },
-        }
-    }
-}
+use crate::shard::PyWriterFileShards;
 
 /// Config for multi-threaded writer.
 #[pyclass(name = "MultiThreadedWriterConfig")]
 #[derive(Clone)]
 pub struct PyMultiThreadedWriterConfig {
-    shards: PyFileShards,
+    shards: PyWriterFileShards,
     num_shards: usize,
     worker_threads: Option<usize>,
     max_bytes_per_writer: Option<usize>,
@@ -118,7 +39,7 @@ impl PyMultiThreadedWriterConfig {
         compression=None
     ))]
     fn new(
-        shards: PyFileShards,
+        shards: PyWriterFileShards,
         num_shards: usize,
         worker_threads: Option<usize>,
         max_bytes_per_writer: Option<usize>,

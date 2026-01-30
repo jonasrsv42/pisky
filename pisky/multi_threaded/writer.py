@@ -4,8 +4,8 @@ from typing import Any
 
 from pisky._pisky import MultiThreadedWriterConfig as _MTWriterConfig
 from pisky._pisky import MultiThreadedWriter as _MTWriter
-from pisky._pisky import MTWriterFileShards as _MTFileShards
-from pisky.compression import Compression, Zstd, Uncompressed
+from pisky.compression import Compression, Uncompressed
+from pisky.shard.writer import FileShards
 
 __all__ = ["FileShards", "MultiThreadedConfig", "MultiThreadedWriter"]
 
@@ -29,41 +29,16 @@ class MultiThreadedWriter:
         self._inner.close()
 
 
-class FileShards:
-    """
-    A file-based shard factory for multi-threaded writing.
-
-    Creates sequentially numbered files: `{prefix}_0`, `{prefix}_1`, etc.
-
-    Example:
-        sink = FileShards.from_pattern("/data", "shard")
-        sink = FileShards.from_prefix("/data/shard")
-        sink = FileShards.from_pattern("/data", "shard", append=True)
-    """
-
-    def __init__(self, inner: _MTFileShards) -> None:
-        self._inner = inner
-
-    @staticmethod
-    def from_pattern(dir: str, prefix: str, append: bool = False) -> "FileShards":
-        """Create by specifying directory and prefix separately."""
-        return FileShards(_MTFileShards.from_pattern(dir, prefix, append))
-
-    @staticmethod
-    def from_prefix(prefix: str, append: bool = False) -> "FileShards":
-        """Create from a path prefix (e.g., '/data/shard' -> dir='/data', prefix='shard')."""
-        return FileShards(_MTFileShards.from_prefix(prefix, append))
-
-
 class MultiThreadedConfig:
     """
     Multi-threaded shard writer - writes to shards in parallel using worker threads.
 
     Example:
         from pisky.multi_threaded import writer
+        from pisky.shard.writer import FileShards
         from pisky.compression import Zstd
 
-        sink = writer.FileShards.from_pattern("/data", "shard")
+        sink = FileShards.from_pattern("/data", "shard")
         with writer.MultiThreadedConfig(sink, num_shards=4, compression=Zstd(3)) as w:
             w.write(b"hello")
     """
@@ -80,7 +55,7 @@ class MultiThreadedConfig:
     ) -> None:
         """
         Args:
-            shards: The file shards sink.
+            shards: The file shards sink (from pisky.shard.writer.FileShards).
             num_shards: Number of shards to manage concurrently (default: 2).
             worker_threads: Number of worker threads (default: auto).
             max_bytes_per_writer: Max bytes per writer before rotation (default: auto).

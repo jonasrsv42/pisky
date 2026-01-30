@@ -4,9 +4,8 @@ pub mod writer;
 
 // Re-export for lib.rs
 pub use reader::{
-    PyRRReaderRandOrder, PyRRReaderRandOrderReader, PyRRReaderSeqOrder, PyRRReaderSeqOrderReader,
-    PySeqReaderRandOrder, PySeqReaderRandOrderReader, PySeqReaderSeqOrder,
-    PySeqReaderSeqOrderReader,
+    PyRRReaderRandOrderConfig, PyRRReaderSeqOrderConfig, PySeqReaderRandOrderConfig,
+    PySeqReaderSeqOrderConfig, PyShardReader,
 };
 pub use source::PyFileShards as PyReaderFileShards;
 pub use writer::{

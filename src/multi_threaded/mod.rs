@@ -3,7 +3,7 @@ pub mod writer;
 
 // Re-export for lib.rs
 pub use reader::{
-    PyMultiThreadedReaderRandOrder, PyMultiThreadedReaderRandOrderReader,
-    PyMultiThreadedReaderSeqOrder, PyMultiThreadedReaderSeqOrderReader,
+    PyMultiThreadedReader, PyMultiThreadedReaderRandOrderConfig,
+    PyMultiThreadedReaderSeqOrderConfig,
 };
 pub use writer::{PyMultiThreadedWriterConfig, PyMultiThreadedWriterInstance};

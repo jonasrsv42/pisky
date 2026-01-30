@@ -8,6 +8,7 @@ from .._pisky import RecordReader as _RecordReader
 from .._pisky import RecordReaderConfig as _RecordReaderConfig
 from ..bytes import Bytes
 from ..corruption import CorruptionStrategy
+from ..tree.node import RustNode
 
 PathType = str | Path | PathLike[Any]
 
@@ -93,6 +94,10 @@ class RecordReaderConfig:
         exc_tb: Any,
     ) -> bool:
         return False
+
+    def _to_rust_node(self) -> RustNode:
+        """Convert this config to its Rust equivalent for tree composition."""
+        return self._config
 
     @staticmethod
     def count_records(

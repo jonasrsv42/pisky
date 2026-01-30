@@ -3,10 +3,12 @@ use pyo3::prelude::*;
 use std::fs::File;
 use std::path::PathBuf;
 
+use disky::error::Result as DiskyResult;
 use disky::reader::{
     CorruptionStrategy, DiskyPiece, RecordReader, RecordReaderConfig as RustReaderConfig,
     RecordReaderOptions,
 };
+use disky::tree::reader::{Node, Reader};
 
 use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
 
@@ -99,5 +101,21 @@ impl PyRecordReader {
     /// Read the next record, or None if EOF.
     fn read(&mut self) -> PyResult<Option<pyo3_bytes::PyBytes>> {
         self.__next__()
+    }
+}
+
+// Implement Node trait for tree composition
+impl Node for PyRecordReaderConfig {
+    fn make(self: Box<Self>) -> DiskyResult<Reader> {
+        let file = File::open(&self.path)?;
+
+        let mut builder = RustReaderConfig::new(file);
+
+        if let Some(strategy) = self.corruption_strategy {
+            let options = RecordReaderOptions::default().with_corruption_strategy(strategy);
+            builder = builder.options(options);
+        }
+
+        Ok(Box::new(builder.build()?))
     }
 }
