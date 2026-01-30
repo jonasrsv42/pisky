@@ -89,6 +89,7 @@ class MultiThreadedConfig:
                     self._worker_threads,
                     self._queue_size_mb,
                     py_strategy,
+                    self._order._seed,
                 )
             case _:
                 raise TypeError(f"Unknown order type: {type(self._order)}")

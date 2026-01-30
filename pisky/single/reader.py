@@ -47,6 +47,10 @@ class RecordReader:
             raise StopIteration
         return record
 
+    def _close(self) -> None:
+        """Close the reader. Called automatically on context exit."""
+        self._inner.close()
+
 
 class RecordReaderConfig:
     """
@@ -82,10 +86,12 @@ class RecordReaderConfig:
         self._path = str(path)
         self._corruption_strategy = corruption_strategy
         self._config = _RecordReaderConfig(self._path, corruption_strategy._to_py())
+        self._reader: RecordReader | None = None
 
     def __enter__(self) -> RecordReader:
         inner = self._config.__enter__()
-        return RecordReader(inner)
+        self._reader = RecordReader(inner)
+        return self._reader
 
     def __exit__(
         self,
@@ -93,6 +99,9 @@ class RecordReaderConfig:
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> bool:
+        if self._reader is not None:
+            self._reader._close()
+            self._reader = None
         return False
 
     def _to_rust_node(self) -> RustNode:

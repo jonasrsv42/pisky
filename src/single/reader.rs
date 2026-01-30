@@ -61,7 +61,7 @@ impl PyRecordReaderConfig {
 /// Implements iterator protocol for reading records.
 #[pyclass(name = "RecordReader")]
 pub struct PyRecordReader {
-    reader: RecordReader<File>,
+    reader: Option<RecordReader<File>>,
 }
 
 impl PyRecordReader {
@@ -80,7 +80,9 @@ impl PyRecordReader {
             .build()
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
 
-        Ok(Self { reader })
+        Ok(Self {
+            reader: Some(reader),
+        })
     }
 }
 
@@ -91,7 +93,12 @@ impl PyRecordReader {
     }
 
     fn __next__(&mut self) -> PyResult<Option<pyo3_bytes::PyBytes>> {
-        match self.reader.next_record() {
+        let reader = self
+            .reader
+            .as_mut()
+            .ok_or_else(|| PyIOError::new_err("Reader is closed"))?;
+
+        match reader.next_record() {
             Ok(DiskyPiece::Record(bytes)) => Ok(Some(pyo3_bytes::PyBytes::new(bytes))),
             Ok(DiskyPiece::EOF) => Ok(None),
             Err(e) => Err(PyIOError::new_err(e.to_string())),
@@ -101,6 +108,11 @@ impl PyRecordReader {
     /// Read the next record, or None if EOF.
     fn read(&mut self) -> PyResult<Option<pyo3_bytes::PyBytes>> {
         self.__next__()
+    }
+
+    /// Close the reader, releasing the underlying file handle.
+    fn close(&mut self) {
+        self.reader.take();
     }
 }
 

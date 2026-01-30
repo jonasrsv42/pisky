@@ -145,5 +145,59 @@ class TestRecordReaderConfig:
 
         assert "No such file" in str(exc_info.value) or "nonexistent" in str(exc_info.value)
 
+    def test_read_after_close_raises_error(self):
+        """Test that reading after close() raises an error."""
+        with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
+            temp_path = temp.name
+
+        try:
+            with RecordWriterConfig(temp_path) as writer:
+                writer.write(b"test")
+
+            with RecordReaderConfig(temp_path) as reader:
+                # Read one record successfully
+                record = reader.read()
+                assert bytes(record) == b"test"
+
+                # Close the reader explicitly
+                reader._inner.close()
+
+                # Subsequent read should raise an error
+                with pytest.raises(Exception) as exc_info:
+                    reader.read()
+
+                assert "closed" in str(exc_info.value).lower()
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    def test_iterate_after_close_raises_error(self):
+        """Test that iterating after close() raises an error."""
+        with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
+            temp_path = temp.name
+
+        try:
+            with RecordWriterConfig(temp_path) as writer:
+                writer.write(b"one")
+                writer.write(b"two")
+
+            with RecordReaderConfig(temp_path) as reader:
+                # Read one record
+                record = next(reader)
+                assert bytes(record) == b"one"
+
+                # Close the reader
+                reader._inner.close()
+
+                # Subsequent iteration should raise an error
+                with pytest.raises(Exception) as exc_info:
+                    next(reader)
+
+                assert "closed" in str(exc_info.value).lower()
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

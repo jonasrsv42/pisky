@@ -24,12 +24,14 @@ use crate::shard::source::PyFileShards;
 /// This is the shared reader type returned by all multi-threaded reader configs.
 #[pyclass(name = "MultiThreadedReader")]
 pub struct PyMultiThreadedReader {
-    reader: MultiThreadedReader<std::fs::File>,
+    reader: Option<MultiThreadedReader<std::fs::File>>,
 }
 
 impl PyMultiThreadedReader {
     pub fn new(reader: MultiThreadedReader<std::fs::File>) -> Self {
-        Self { reader }
+        Self {
+            reader: Some(reader),
+        }
     }
 }
 
@@ -39,10 +41,15 @@ impl PyMultiThreadedReader {
         slf
     }
 
-    fn __next__<'py>(&self, py: Python<'py>) -> PyResult<Option<pyo3_bytes::PyBytes>> {
+    fn __next__<'py>(&mut self, py: Python<'py>) -> PyResult<Option<pyo3_bytes::PyBytes>> {
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| PyIOError::new_err("Reader is closed"))?;
+
         py.allow_threads(|| {
             loop {
-                match self.reader.read() {
+                match reader.read() {
                     Ok(DiskyParallelPiece::Record(bytes)) => {
                         return Ok(Some(pyo3_bytes::PyBytes::new(bytes)));
                     }
@@ -54,26 +61,15 @@ impl PyMultiThreadedReader {
         })
     }
 
-    fn close<'py>(&self, py: Python<'py>) -> PyResult<()> {
+    fn close<'py>(&mut self, py: Python<'py>) -> PyResult<()> {
+        let reader = self
+            .reader
+            .take()
+            .ok_or_else(|| PyIOError::new_err("Reader is already closed"))?;
+
         py.allow_threads(|| {
-            self.reader
+            reader
                 .close()
-                .map_err(|e| PyIOError::new_err(e.to_string()))
-        })
-    }
-
-    fn queued_records<'py>(&self, py: Python<'py>) -> PyResult<usize> {
-        py.allow_threads(|| {
-            self.reader
-                .queued_records()
-                .map_err(|e| PyIOError::new_err(e.to_string()))
-        })
-    }
-
-    fn queued_bytes<'py>(&self, py: Python<'py>) -> PyResult<usize> {
-        py.allow_threads(|| {
-            self.reader
-                .queued_bytes()
                 .map_err(|e| PyIOError::new_err(e.to_string()))
         })
     }
@@ -167,18 +163,20 @@ pub struct PyMultiThreadedReaderRandOrderConfig {
     worker_threads: Option<usize>,
     queue_size_mb: Option<usize>,
     corruption_strategy: Option<CorruptionStrategy>,
+    seed: Option<u64>,
 }
 
 #[pymethods]
 impl PyMultiThreadedReaderRandOrderConfig {
     #[new]
-    #[pyo3(signature = (shards, num_parallel=2, worker_threads=None, queue_size_mb=None, corruption_strategy=None))]
+    #[pyo3(signature = (shards, num_parallel=2, worker_threads=None, queue_size_mb=None, corruption_strategy=None, seed=None))]
     fn new(
         shards: PyFileShards,
         num_parallel: usize,
         worker_threads: Option<usize>,
         queue_size_mb: Option<usize>,
         corruption_strategy: Option<PyCorruptionStrategy>,
+        seed: Option<u64>,
     ) -> Self {
         Self {
             shards,
@@ -186,13 +184,17 @@ impl PyMultiThreadedReaderRandOrderConfig {
             worker_threads,
             queue_size_mb,
             corruption_strategy: convert_corruption_strategy(corruption_strategy),
+            seed,
         }
     }
 
     fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyMultiThreadedReader>> {
         let config = slf.borrow(py);
         let file_shards = config.shards.spec.build()?;
-        let source = RandomRepeatingShardSource::new(file_shards);
+        let source = match config.seed {
+            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
+            None => RandomRepeatingShardSource::new(file_shards),
+        };
         let sharding_config = ShardingConfig::new(Box::new(source), config.num_parallel);
 
         let mut parallel_reader_config = ParallelReaderConfig::default();

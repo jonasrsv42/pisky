@@ -59,16 +59,20 @@ class SequentialConfig:
         self._config: Any = None
         self._reader: Any = None
 
-    def __enter__(self) -> Any:
+    def _make_rust_config(self) -> Any:
+        """Create the Rust config object based on order type."""
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
         match self._order:
             case Sequential():
-                self._config = _SeqSeqConfig(shards, py_strategy)
+                return _SeqSeqConfig(shards, py_strategy)
             case RandomRepeat():
-                self._config = _SeqRandConfig(shards, py_strategy)
+                return _SeqRandConfig(shards, py_strategy, self._order._seed)
             case _:
                 raise TypeError(f"Unknown order type: {type(self._order)}")
+
+    def __enter__(self) -> Any:
+        self._config = self._make_rust_config()
         self._reader = self._config.__enter__()
         return self._reader
 
@@ -78,21 +82,15 @@ class SequentialConfig:
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> bool:
-        self._reader = None
+        if self._reader is not None:
+            self._reader.close()
+            self._reader = None
         self._config = None
         return False
 
     def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
-        shards = self._order._shards._inner
-        py_strategy = self._corruption_strategy._to_py()
-        match self._order:
-            case Sequential():
-                return _SeqSeqConfig(shards, py_strategy)
-            case RandomRepeat():
-                return _SeqRandConfig(shards, py_strategy)
-            case _:
-                raise TypeError(f"Unknown order type: {type(self._order)}")
+        return self._make_rust_config()
 
 
 class RoundRobinConfig:
@@ -127,16 +125,22 @@ class RoundRobinConfig:
         self._config: Any = None
         self._reader: Any = None
 
-    def __enter__(self) -> Any:
+    def _make_rust_config(self) -> Any:
+        """Create the Rust config object based on order type."""
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
         match self._order:
             case Sequential():
-                self._config = _RRSeqConfig(shards, py_strategy, self._max_active)
+                return _RRSeqConfig(shards, py_strategy, self._max_active)
             case RandomRepeat():
-                self._config = _RRRandConfig(shards, py_strategy, self._max_active)
+                return _RRRandConfig(
+                    shards, py_strategy, self._max_active, self._order._seed
+                )
             case _:
                 raise TypeError(f"Unknown order type: {type(self._order)}")
+
+    def __enter__(self) -> Any:
+        self._config = self._make_rust_config()
         self._reader = self._config.__enter__()
         return self._reader
 
@@ -146,18 +150,12 @@ class RoundRobinConfig:
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> bool:
-        self._reader = None
+        if self._reader is not None:
+            self._reader.close()
+            self._reader = None
         self._config = None
         return False
 
     def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
-        shards = self._order._shards._inner
-        py_strategy = self._corruption_strategy._to_py()
-        match self._order:
-            case Sequential():
-                return _RRSeqConfig(shards, py_strategy, self._max_active)
-            case RandomRepeat():
-                return _RRRandConfig(shards, py_strategy, self._max_active)
-            case _:
-                raise TypeError(f"Unknown order type: {type(self._order)}")
+        return self._make_rust_config()

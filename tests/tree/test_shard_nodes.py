@@ -165,6 +165,92 @@ class TestShardNodesInTree:
             # s0, a0, s1, b0, (shards exhausted), a1, b1
             assert records == [b"s0", b"a0", b"s1", b"b0", b"a1", b"b1"]
 
+    def test_random_order_same_seed_same_shuffle(self):
+        """Test that two RandomRepeat readers with same seed shuffle identically."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Write group1 shards: g1_0 to g1_4
+            for i in range(5):
+                path = os.path.join(tmpdir, f"group1_{i}")
+                with RecordWriterConfig(path) as w:
+                    w.write(f"g1_{i}".encode())
+
+            # Write group2 shards: g2_0 to g2_4
+            for i in range(5):
+                path = os.path.join(tmpdir, f"group2_{i}")
+                with RecordWriterConfig(path) as w:
+                    w.write(f"g2_{i}".encode())
+
+            # Both with same seed=123 -> both shuffle to order [3,1,4,0,2]
+            shards1 = ReaderFileShards.from_pattern(tmpdir, "group1_")
+            shards2 = ReaderFileShards.from_pattern(tmpdir, "group2_")
+
+            from pisky.shard.order import RandomRepeat
+
+            config = RoundRobinConfig([
+                ShardSequentialConfig(RandomRepeat(shards1, seed=123)),
+                ShardSequentialConfig(RandomRepeat(shards2, seed=123)),
+            ])
+
+            records = []
+            with config as reader:
+                for i, record in enumerate(reader):
+                    records.append(bytes(record))
+                    if i >= 9:
+                        break
+
+            # Same seed -> same shuffle order -> paired interleaving
+            expected = [
+                b"g1_3", b"g2_3",
+                b"g1_1", b"g2_1",
+                b"g1_4", b"g2_4",
+                b"g1_0", b"g2_0",
+                b"g1_2", b"g2_2",
+            ]
+            assert records == expected
+
+    def test_random_order_different_seeds_different_shuffle(self):
+        """Test that two RandomRepeat readers with different seeds shuffle differently."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Write group1 shards: g1_0 to g1_4
+            for i in range(5):
+                path = os.path.join(tmpdir, f"group1_{i}")
+                with RecordWriterConfig(path) as w:
+                    w.write(f"g1_{i}".encode())
+
+            # Write group2 shards: g2_0 to g2_4
+            for i in range(5):
+                path = os.path.join(tmpdir, f"group2_{i}")
+                with RecordWriterConfig(path) as w:
+                    w.write(f"g2_{i}".encode())
+
+            # seed=123 -> [3,1,4,0,2], seed=999 -> [2,1,4,3,0]
+            shards1 = ReaderFileShards.from_pattern(tmpdir, "group1_")
+            shards2 = ReaderFileShards.from_pattern(tmpdir, "group2_")
+
+            from pisky.shard.order import RandomRepeat
+
+            config = RoundRobinConfig([
+                ShardSequentialConfig(RandomRepeat(shards1, seed=123)),
+                ShardSequentialConfig(RandomRepeat(shards2, seed=999)),
+            ])
+
+            records = []
+            with config as reader:
+                for i, record in enumerate(reader):
+                    records.append(bytes(record))
+                    if i >= 9:
+                        break
+
+            # Different seeds -> different shuffle orders -> mixed interleaving
+            expected = [
+                b"g1_3", b"g2_2",
+                b"g1_1", b"g2_1",
+                b"g1_4", b"g2_4",
+                b"g1_0", b"g2_3",
+                b"g1_2", b"g2_0",
+            ]
+            assert records == expected
+
 
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

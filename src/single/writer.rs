@@ -91,13 +91,6 @@ impl PyRecordWriter {
             .map_err(|e| PyIOError::new_err(e.to_string()))
     }
 
-    /// Flush buffered data to disk.
-    fn flush(&mut self) -> PyResult<()> {
-        self.writer
-            .flush()
-            .map_err(|e| PyIOError::new_err(e.to_string()))
-    }
-
     /// Close the writer. Called automatically on context exit.
     fn close(&mut self) -> PyResult<()> {
         self.writer

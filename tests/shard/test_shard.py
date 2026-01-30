@@ -168,6 +168,39 @@ class TestShardReader:
             for record in records:
                 assert record in expected
 
+    def test_random_order_with_seed_exact_ordering(self):
+        """Test that RandomRepeat with a seed produces exact deterministic shuffled ordering."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Write 5 shards manually with known content
+            # Each shard has 2 records: shard_0 has [s0_a, s0_b], shard_1 has [s1_a, s1_b], etc.
+            from pisky import RecordWriterConfig
+
+            for i in range(5):
+                shard_path = os.path.join(tmpdir, f"shard_{i}")
+                with RecordWriterConfig(shard_path) as w:
+                    w.write(f"s{i}_a".encode())
+                    w.write(f"s{i}_b".encode())
+
+            # Read with seed=123 - sequential reader drains each shard before moving to next
+            shards = reader.FileShards.from_pattern(tmpdir, "shard")
+            rand = order.RandomRepeat(shards, seed=123)
+            records = []
+            with reader.SequentialConfig(rand) as r:
+                for i, record in enumerate(r):
+                    records.append(bytes(record))
+                    if i >= 9:  # Take first 10 records (one full pass)
+                        break
+
+            # With seed=123, expect exact shuffled order: 3, 1, 4, 0, 2
+            expected = [
+                b"s3_a", b"s3_b",
+                b"s1_a", b"s1_b",
+                b"s4_a", b"s4_b",
+                b"s0_a", b"s0_b",
+                b"s2_a", b"s2_b",
+            ]
+            assert records == expected
+
 
 class TestFileShards:
     """Tests for FileShards construction."""
@@ -219,6 +252,60 @@ class TestFileShards:
                     records.append(bytes(record))
 
             assert len(records) == 5
+
+
+class TestReaderClose:
+    """Tests for reader close behavior."""
+
+    def test_sequential_reader_close_raises_error_on_subsequent_read(self):
+        """Test that reading after close() raises an error for sequential reader."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sink = writer.FileShards.from_pattern(tmpdir, "shard")
+            with writer.SequentialConfig(sink) as w:
+                w.write(b"one")
+                w.write(b"two")
+
+            shards = reader.FileShards.from_pattern(tmpdir, "shard")
+            seq = order.Sequential(shards)
+
+            with reader.SequentialConfig(seq) as r:
+                # Read one record successfully
+                record = next(r)
+                assert bytes(record) == b"one"
+
+                # Close the reader explicitly
+                r.close()
+
+                # Subsequent read should raise an error
+                with pytest.raises(Exception) as exc_info:
+                    next(r)
+
+                assert "closed" in str(exc_info.value).lower()
+
+    def test_roundrobin_reader_close_raises_error_on_subsequent_read(self):
+        """Test that reading after close() raises an error for round-robin reader."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sink = writer.FileShards.from_pattern(tmpdir, "shard")
+            with writer.SequentialConfig(sink, max_shard_bytes=50) as w:
+                for i in range(10):
+                    w.write(f"record_{i}".encode())
+
+            shards = reader.FileShards.from_pattern(tmpdir, "shard")
+            seq = order.Sequential(shards)
+
+            with reader.RoundRobinConfig(seq) as r:
+                # Read one record successfully
+                record = next(r)
+                assert record is not None
+
+                # Close the reader explicitly
+                r.close()
+
+                # Subsequent read should raise an error
+                with pytest.raises(Exception) as exc_info:
+                    next(r)
+
+                assert "closed" in str(exc_info.value).lower()
 
 
 class TestWriterAppend:

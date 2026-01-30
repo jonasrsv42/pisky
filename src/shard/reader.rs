@@ -27,12 +27,14 @@ use super::source::PyFileShards;
 /// This is the shared reader type returned by all shard reader configs.
 #[pyclass(name = "ShardReader")]
 pub struct PyShardReader {
-    reader: Reader,
+    reader: Option<Reader>,
 }
 
 impl PyShardReader {
     pub fn new(reader: Reader) -> Self {
-        Self { reader }
+        Self {
+            reader: Some(reader),
+        }
     }
 }
 
@@ -43,11 +45,21 @@ impl PyShardReader {
     }
 
     fn __next__(&mut self) -> PyResult<Option<pyo3_bytes::PyBytes>> {
-        match self.reader.next() {
+        let reader = self
+            .reader
+            .as_mut()
+            .ok_or_else(|| PyIOError::new_err("Reader is closed"))?;
+
+        match reader.next() {
             Some(Ok(bytes)) => Ok(Some(pyo3_bytes::PyBytes::new(bytes))),
             Some(Err(e)) => Err(PyIOError::new_err(e.to_string())),
             None => Ok(None),
         }
+    }
+
+    /// Close the reader, releasing all underlying file handles.
+    fn close(&mut self) {
+        self.reader.take();
     }
 }
 
@@ -127,23 +139,32 @@ impl Node for PySeqReaderSeqOrderConfig {
 pub struct PySeqReaderRandOrderConfig {
     shards: PyFileShards,
     corruption_strategy: Option<CorruptionStrategy>,
+    seed: Option<u64>,
 }
 
 #[pymethods]
 impl PySeqReaderRandOrderConfig {
     #[new]
-    #[pyo3(signature = (shards, corruption_strategy=None))]
-    fn new(shards: PyFileShards, corruption_strategy: Option<PyCorruptionStrategy>) -> Self {
+    #[pyo3(signature = (shards, corruption_strategy=None, seed=None))]
+    fn new(
+        shards: PyFileShards,
+        corruption_strategy: Option<PyCorruptionStrategy>,
+        seed: Option<u64>,
+    ) -> Self {
         Self {
             shards,
             corruption_strategy: convert_corruption_strategy(corruption_strategy),
+            seed,
         }
     }
 
     fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyShardReader>> {
         let config = slf.borrow(py);
         let file_shards = config.shards.spec.build()?;
-        let source = RandomRepeatingShardSource::new(file_shards);
+        let source = match config.seed {
+            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
+            None => RandomRepeatingShardSource::new(file_shards),
+        };
 
         let mut builder = SequentialShardReaderConfig::new(source);
         if let Some(s) = config.corruption_strategy {
@@ -170,7 +191,10 @@ impl PySeqReaderRandOrderConfig {
 impl Node for PySeqReaderRandOrderConfig {
     fn make(self: Box<Self>) -> disky::error::Result<Reader> {
         let file_shards = self.shards.spec.build_disky()?;
-        let source = RandomRepeatingShardSource::new(file_shards);
+        let source = match self.seed {
+            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
+            None => RandomRepeatingShardSource::new(file_shards),
+        };
 
         let mut builder = SequentialShardReaderConfig::new(source);
         if let Some(s) = self.corruption_strategy {
@@ -271,28 +295,34 @@ pub struct PyRRReaderRandOrderConfig {
     shards: PyFileShards,
     corruption_strategy: Option<CorruptionStrategy>,
     max_active: Option<usize>,
+    seed: Option<u64>,
 }
 
 #[pymethods]
 impl PyRRReaderRandOrderConfig {
     #[new]
-    #[pyo3(signature = (shards, corruption_strategy=None, max_active=None))]
+    #[pyo3(signature = (shards, corruption_strategy=None, max_active=None, seed=None))]
     fn new(
         shards: PyFileShards,
         corruption_strategy: Option<PyCorruptionStrategy>,
         max_active: Option<usize>,
+        seed: Option<u64>,
     ) -> Self {
         Self {
             shards,
             corruption_strategy: convert_corruption_strategy(corruption_strategy),
             max_active,
+            seed,
         }
     }
 
     fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyShardReader>> {
         let config = slf.borrow(py);
         let file_shards = config.shards.spec.build()?;
-        let source = RandomRepeatingShardSource::new(file_shards);
+        let source = match config.seed {
+            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
+            None => RandomRepeatingShardSource::new(file_shards),
+        };
 
         let mut builder = RoundRobinShardReaderConfig::new(source);
         if let Some(s) = config.corruption_strategy {
@@ -322,7 +352,10 @@ impl PyRRReaderRandOrderConfig {
 impl Node for PyRRReaderRandOrderConfig {
     fn make(self: Box<Self>) -> disky::error::Result<Reader> {
         let file_shards = self.shards.spec.build_disky()?;
-        let source = RandomRepeatingShardSource::new(file_shards);
+        let source = match self.seed {
+            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
+            None => RandomRepeatingShardSource::new(file_shards),
+        };
 
         let mut builder = RoundRobinShardReaderConfig::new(source);
         if let Some(s) = self.corruption_strategy {

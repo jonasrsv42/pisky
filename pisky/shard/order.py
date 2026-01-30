@@ -29,7 +29,11 @@ class RandomRepeat:
         with reader.Sequential(rand) as r:
             for record in r:  # infinite!
                 ...
+
+        # With seed for reproducible ordering
+        rand = order.RandomRepeat(shards, seed=42)
     """
 
-    def __init__(self, shards: FileShards) -> None:
+    def __init__(self, shards: FileShards, seed: int | None = None) -> None:
         self._shards = shards
+        self._seed = seed
