@@ -35,6 +35,10 @@ class TreeReader:
             raise StopIteration
         return record
 
+    def close(self) -> None:
+        """Close the reader, releasing all underlying resources."""
+        self._inner.close()
+
 
 class RoundRobinConfig:
     """
@@ -91,7 +95,9 @@ class RoundRobinConfig:
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> bool:
-        self._reader = None
+        if self._reader is not None:
+            self._reader.close()
+            self._reader = None
         return False
 
     def _to_rust_node(self) -> RustNode:

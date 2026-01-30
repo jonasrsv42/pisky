@@ -12,7 +12,7 @@ use crate::shard::{
 };
 use crate::single::PyRecordReaderConfig;
 
-use super::PyRoundRobinConfig;
+use super::{PyRoundRobinConfig, PyShuffleConfig};
 
 /// Enum of all Python config types that can be used as tree nodes.
 ///
@@ -22,13 +22,13 @@ use super::PyRoundRobinConfig;
 pub enum PyNodeEnum {
     RecordReaderConfig(PyRecordReaderConfig),
     RoundRobinConfig(PyRoundRobinConfig),
+    ShuffleConfig(PyShuffleConfig),
     // Shard readers (4 variants: 2 reading strategies × 2 iteration orders)
     SeqReaderSeqOrderConfig(PySeqReaderSeqOrderConfig),
     SeqReaderRandOrderConfig(PySeqReaderRandOrderConfig),
     RRReaderSeqOrderConfig(PyRRReaderSeqOrderConfig),
     RRReaderRandOrderConfig(PyRRReaderRandOrderConfig),
     // TODO: Add more variants as we implement them:
-    // ShuffleConfig(PyShuffleConfig),
     // SamplingConfig(PySamplingConfig),
     // ThreadedConfig(PyThreadedConfig),
 }
@@ -38,6 +38,7 @@ impl Node for PyNodeEnum {
         match *self {
             Self::RecordReaderConfig(c) => Box::new(c).make(),
             Self::RoundRobinConfig(c) => Box::new(c).make(),
+            Self::ShuffleConfig(c) => Box::new(c).make(),
             Self::SeqReaderSeqOrderConfig(c) => Box::new(c).make(),
             Self::SeqReaderRandOrderConfig(c) => Box::new(c).make(),
             Self::RRReaderSeqOrderConfig(c) => Box::new(c).make(),
@@ -49,12 +50,14 @@ impl Node for PyNodeEnum {
 /// Active tree reader - iterates over records from a composed tree.
 #[pyclass(name = "TreeReader")]
 pub struct PyTreeReader {
-    inner: Reader,
+    inner: Option<Reader>,
 }
 
 impl PyTreeReader {
     pub fn new(reader: Reader) -> Self {
-        Self { inner: reader }
+        Self {
+            inner: Some(reader),
+        }
     }
 }
 
@@ -65,10 +68,20 @@ impl PyTreeReader {
     }
 
     fn __next__(&mut self) -> PyResult<Option<pyo3_bytes::PyBytes>> {
-        match self.inner.next() {
+        let reader = self
+            .inner
+            .as_mut()
+            .ok_or_else(|| PyIOError::new_err("Reader is closed"))?;
+
+        match reader.next() {
             Some(Ok(bytes)) => Ok(Some(pyo3_bytes::PyBytes::new(bytes))),
             Some(Err(e)) => Err(PyIOError::new_err(e.to_string())),
             None => Ok(None),
         }
+    }
+
+    /// Close the reader, releasing all underlying resources.
+    fn close(&mut self) {
+        self.inner.take();
     }
 }

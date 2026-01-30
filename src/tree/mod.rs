@@ -5,6 +5,8 @@
 
 mod node;
 mod round_robin;
+mod shuffle;
 
 pub use node::PyTreeReader;
 pub use round_robin::PyRoundRobinConfig;
+pub use shuffle::PyShuffleConfig;
