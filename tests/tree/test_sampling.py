@@ -9,7 +9,7 @@ from pisky import RecordWriterConfig, RecordReaderConfig
 from pisky.shard.file_shards import FileShards
 from pisky.shard.order import RandomRepeat
 from pisky.shard.reader import SequentialConfig as ShardSequentialConfig
-from pisky.tree import SamplingConfig, ShuffleConfig, RoundRobinConfig
+from pisky.tree import SamplingConfig, ShuffleConfig, RoundRobinConfig, WeightedNodeConfig
 
 
 class TestSamplingConfig:
@@ -403,6 +403,48 @@ class TestSamplingReaderClose:
                     next(reader)
 
                 assert "closed" in str(exc_info.value).lower()
+
+
+class TestSamplingWeight:
+    """Tests for SamplingConfig weight behavior."""
+
+    def test_sampling_weight_all_none(self):
+        """Test that weight is None when all children are unweighted."""
+        config = SamplingConfig([
+            (RecordReaderConfig("a.disky"), 2.0),
+            (RecordReaderConfig("b.disky"), 1.0),
+        ])
+        assert config.weight is None
+
+    def test_sampling_weight_weighted_sum(self):
+        """Test that weight is weighted sum: explicit_w * child_weight."""
+        config = SamplingConfig([
+            (WeightedNodeConfig(RecordReaderConfig("a.disky"), 2.0), 3.0),
+            (WeightedNodeConfig(RecordReaderConfig("b.disky"), 1.0), 1.0),
+        ])
+        # 3.0 * 2.0 + 1.0 * 1.0 = 7.0
+        assert config.weight == 7.0
+
+    def test_sampling_weight_nested(self):
+        """Test weight with nested weighted children."""
+        config = SamplingConfig([
+            (WeightedNodeConfig(RecordReaderConfig("a.disky"), 2.0), 2.0),
+            (RoundRobinConfig([
+                WeightedNodeConfig(RecordReaderConfig("b.disky"), 1.0),
+                WeightedNodeConfig(RecordReaderConfig("c.disky"), 3.0),
+            ]), 1.0),
+        ])
+        # 2.0 * 2.0 + 1.0 * (1.0 + 3.0) = 4.0 + 4.0 = 8.0
+        assert config.weight == 8.0
+
+    def test_sampling_weight_mixed_raises_error(self):
+        """Test that mixed weighted/unweighted children raises error."""
+        config = SamplingConfig([
+            (WeightedNodeConfig(RecordReaderConfig("a.disky"), 2.0), 3.0),
+            (RecordReaderConfig("b.disky"), 1.0),  # unweighted
+        ])
+        with pytest.raises(ValueError, match="missing weights"):
+            _ = config.weight
 
 
 if __name__ == "__main__":

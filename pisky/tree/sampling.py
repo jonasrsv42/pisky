@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from types import TracebackType
 
 from pisky._pisky import SamplingConfig as _SamplingConfig
 from pisky.tree.node import NodeConfig, RustNode
@@ -79,9 +79,9 @@ class SamplingConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._reader is not None:
             self._reader.close()
@@ -94,3 +94,32 @@ class SamplingConfig:
             (child._to_rust_node(), weight) for child, weight in self._sources
         ]
         return _SamplingConfig(rust_sources, self._seed)
+
+    @property
+    def weight(self) -> float | None:
+        """Subtree weight (weighted sum: explicit_w * child_weight).
+
+        Raises:
+            ValueError: If some children have weights and others don't.
+        """
+        child_weights = [child.weight for child, _ in self._sources]
+
+        # All None -> None
+        if all(w is None for w in child_weights):
+            return None
+
+        # All have weight -> weighted sum
+        if all(w is not None for w in child_weights):
+            return sum(
+                explicit_w * child.weight  # type: ignore
+                for child, explicit_w in self._sources
+            )
+
+        # Mixed: error with details
+        missing = [
+            i for i, w in enumerate(child_weights) if w is None
+        ]
+        raise ValueError(
+            f"SamplingConfig has mixed weights: children at indices {missing} "
+            f"are missing weights"
+        )

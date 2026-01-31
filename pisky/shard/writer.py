@@ -1,6 +1,6 @@
 """Shard writers."""
 
-from typing import Any
+from types import TracebackType
 
 from pisky._pisky import (
     WriterFileShards as _FileShards,
@@ -74,8 +74,8 @@ class SequentialConfig:
         self._shards = shards
         self._compression = compression
         self._max_shard_bytes = max_shard_bytes
-        self._config: Any = None
-        self._writer: Any = None
+        self._config: _SeqWriterConfig | None = None
+        self._writer: SequentialWriter | None = None
 
     def __enter__(self) -> SequentialWriter:
         py_compression = self._compression._to_py()
@@ -90,9 +90,9 @@ class SequentialConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._writer is not None:
             self._writer._close()

@@ -6,7 +6,7 @@ import tempfile
 import pytest
 
 from pisky import RecordWriterConfig, RecordReaderConfig
-from pisky.tree import RoundRobinConfig
+from pisky.tree import RoundRobinConfig, WeightedNodeConfig
 
 
 class TestRoundRobinConfig:
@@ -162,6 +162,47 @@ class TestRoundRobinConfig:
 
             # b exhausts after first round, then a continues
             assert records == [b"a0", b"b0", b"a1", b"a2", b"a3", b"a4"]
+
+
+class TestRoundRobinWeight:
+    """Tests for RoundRobinConfig weight behavior."""
+
+    def test_round_robin_weight_all_none(self):
+        """Test that weight is None when all children are unweighted."""
+        config = RoundRobinConfig([
+            RecordReaderConfig("a.disky"),
+            RecordReaderConfig("b.disky"),
+        ])
+        assert config.weight is None
+
+    def test_round_robin_weight_sums_children(self):
+        """Test that weight sums children weights."""
+        config = RoundRobinConfig([
+            WeightedNodeConfig(RecordReaderConfig("a.disky"), 2.0),
+            WeightedNodeConfig(RecordReaderConfig("b.disky"), 3.0),
+        ])
+        assert config.weight == 5.0
+
+    def test_round_robin_weight_sums_nested(self):
+        """Test that weight sums nested weighted children."""
+        config = RoundRobinConfig([
+            WeightedNodeConfig(RecordReaderConfig("a.disky"), 2.0),
+            RoundRobinConfig([
+                WeightedNodeConfig(RecordReaderConfig("b.disky"), 1.0),
+                WeightedNodeConfig(RecordReaderConfig("c.disky"), 4.0),
+            ]),
+        ])
+        # 2.0 + (1.0 + 4.0) = 7.0
+        assert config.weight == 7.0
+
+    def test_round_robin_weight_mixed_raises_error(self):
+        """Test that mixed weighted/unweighted children raises error."""
+        config = RoundRobinConfig([
+            WeightedNodeConfig(RecordReaderConfig("a.disky"), 2.0),
+            RecordReaderConfig("b.disky"),  # unweighted
+        ])
+        with pytest.raises(ValueError, match="missing weights"):
+            _ = config.weight
 
 
 if __name__ == "__main__":

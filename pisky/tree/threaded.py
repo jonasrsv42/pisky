@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from types import TracebackType
 
 from pisky._pisky import ThreadedConfig as _ThreadedConfig
 from pisky.tree.node import NodeConfig, RustNode
@@ -66,9 +66,9 @@ class ThreadedConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._reader is not None:
             self._reader.close()
@@ -79,3 +79,8 @@ class ThreadedConfig:
         """Convert this config to its Rust equivalent for tree composition."""
         rust_child = self._child._to_rust_node()
         return _ThreadedConfig(rust_child, self._buffer_size)
+
+    @property
+    def weight(self) -> float | None:
+        """Subtree weight (pass through from child)."""
+        return self._child.weight

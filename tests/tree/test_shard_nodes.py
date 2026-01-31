@@ -252,5 +252,26 @@ class TestShardNodesInTree:
             assert records == expected
 
 
+class TestLeafNodeWeight:
+    """Tests for leaf node weight behavior."""
+
+    def test_record_reader_weight_none(self):
+        """Test that RecordReaderConfig has None weight."""
+        config = RecordReaderConfig("dummy.disky")
+        assert config.weight is None
+
+    def test_shard_sequential_weight_none(self):
+        """Test that shard SequentialConfig has None weight."""
+        shards = ReaderFileShards.from_paths(["dummy.disky"])
+        config = ShardSequentialConfig(Sequential(shards))
+        assert config.weight is None
+
+    def test_shard_round_robin_weight_none(self):
+        """Test that shard RoundRobinConfig has None weight."""
+        shards = ReaderFileShards.from_paths(["dummy.disky"])
+        config = ShardRoundRobinConfig(Sequential(shards))
+        assert config.weight is None
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

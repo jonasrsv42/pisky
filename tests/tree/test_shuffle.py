@@ -6,7 +6,7 @@ import tempfile
 import pytest
 
 from pisky import RecordWriterConfig, RecordReaderConfig
-from pisky.tree import ShuffleConfig, RoundRobinConfig
+from pisky.tree import ShuffleConfig, RoundRobinConfig, WeightedNodeConfig
 
 
 class TestShuffleConfig:
@@ -218,6 +218,35 @@ class TestShuffleConfig:
                 b"r1", b"r3", b"r4", b"r0", b"r5", b"r2", b"r8", b"r6", b"r9", b"r7",
             ]
             assert records == expected
+
+
+class TestShuffleWeight:
+    """Tests for ShuffleConfig weight behavior."""
+
+    def test_shuffle_weight_passes_through_none(self):
+        """Test that shuffle passes through None weight from unweighted child."""
+        config = ShuffleConfig(RecordReaderConfig("dummy.disky"), buffer_size=10)
+        assert config.weight is None
+
+    def test_shuffle_weight_passes_through_weighted_child(self):
+        """Test that shuffle passes through weight from weighted child."""
+        config = ShuffleConfig(
+            WeightedNodeConfig(RecordReaderConfig("dummy.disky"), 3.0),
+            buffer_size=10,
+        )
+        assert config.weight == 3.0
+
+    def test_shuffle_weight_passes_through_stacked_weights(self):
+        """Test that shuffle passes through stacked weights (additive)."""
+        config = ShuffleConfig(
+            WeightedNodeConfig(
+                WeightedNodeConfig(RecordReaderConfig("dummy.disky"), 2.0),
+                3.0,
+            ),
+            buffer_size=10,
+        )
+        # Stacked weights are additive: 2.0 + 3.0 = 5.0
+        assert config.weight == 5.0
 
 
 class TestTreeReaderClose:

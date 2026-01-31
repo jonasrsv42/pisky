@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from types import TracebackType
 
 from pisky._pisky import RoundRobinConfig as _RoundRobinConfig
 from pisky._pisky import TreeReader as _TreeReader
@@ -91,9 +91,9 @@ class RoundRobinConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._reader is not None:
             self._reader.close()
@@ -104,3 +104,29 @@ class RoundRobinConfig:
         """Convert this config to its Rust equivalent for tree composition."""
         rust_children = [c._to_rust_node() for c in self._children]
         return _RoundRobinConfig(rust_children)
+
+    @property
+    def weight(self) -> float | None:
+        """Subtree weight (sum of children weights).
+
+        Raises:
+            ValueError: If some children have weights and others don't.
+        """
+        weights = [c.weight for c in self._children]
+
+        # All None -> None
+        if all(w is None for w in weights):
+            return None
+
+        # All have weight -> sum
+        if all(w is not None for w in weights):
+            return sum(weights)  # type: ignore
+
+        # Mixed: error with details
+        missing = [
+            i for i, w in enumerate(weights) if w is None
+        ]
+        raise ValueError(
+            f"RoundRobinConfig has mixed weights: children at indices {missing} "
+            f"are missing weights"
+        )

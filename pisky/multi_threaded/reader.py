@@ -1,12 +1,14 @@
 """Multi-threaded shard readers."""
 
-from typing import Any
+from types import TracebackType
 
 from pisky._pisky import MultiThreadedReaderRandomOrderConfig as _MTRandConfig
 from pisky._pisky import MultiThreadedReaderSequentialOrderConfig as _MTSeqConfig
+from pisky._pisky import MultiThreadedReader
 from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards
 from pisky.shard.order import RandomRepeat, Sequential
+from pisky.tree.node import RustNode
 
 # Re-export FileShards
 __all__ = ["FileShards", "MultiThreadedConfig", "count_records"]
@@ -67,10 +69,10 @@ class MultiThreadedConfig:
         self._worker_threads = worker_threads
         self._queue_size_mb = queue_size_mb
         self._corruption_strategy = corruption_strategy
-        self._config: Any = None
-        self._reader: Any = None
+        self._config: RustNode | None = None
+        self._reader: MultiThreadedReader | None = None
 
-    def __enter__(self) -> Any:
+    def __enter__(self) -> MultiThreadedReader:
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
         match self._order:
@@ -98,9 +100,9 @@ class MultiThreadedConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._reader is not None:
             self._reader.close()

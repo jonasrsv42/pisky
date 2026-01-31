@@ -2,6 +2,7 @@
 
 from os import PathLike
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 
 from .._pisky import RecordReader as _RecordReader
@@ -95,9 +96,9 @@ class RecordReaderConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._reader is not None:
             self._reader._close()
@@ -107,6 +108,11 @@ class RecordReaderConfig:
     def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         return self._config
+
+    @property
+    def weight(self) -> float | None:
+        """Leaf node - no weight."""
+        return None
 
     @staticmethod
     def count_records(

@@ -2,6 +2,7 @@
 
 from os import PathLike
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 
 from .._pisky import RecordWriter as _RecordWriter
@@ -86,9 +87,9 @@ class RecordWriterConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._writer is not None:
             self._writer._close()

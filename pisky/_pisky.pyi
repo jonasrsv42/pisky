@@ -1,8 +1,11 @@
 """Type stubs for the pisky native module."""
 
+from types import TracebackType
 from typing import Any, Iterator
 from pathlib import Path
 from os import PathLike
+
+from .bytes import Bytes
 
 # Type alias for path-like objects
 PathType = str | Path | PathLike[Any]
@@ -85,9 +88,9 @@ class RecordWriterConfig:
     def __enter__(self) -> "RecordWriter": ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -120,16 +123,16 @@ class RecordReaderConfig:
     def __enter__(self) -> "RecordReader": ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
-class RecordReader(Iterator[bytes]):
+class RecordReader(Iterator[Bytes]):
     """Active record reader for iterating over records."""
 
-    def read(self) -> bytes | None:
+    def read(self) -> Bytes | None:
         """Read the next record, or None if EOF."""
         ...
 
@@ -138,7 +141,7 @@ class RecordReader(Iterator[bytes]):
         ...
 
     def __iter__(self) -> "RecordReader": ...
-    def __next__(self) -> bytes: ...
+    def __next__(self) -> Bytes: ...
 
 
 # =============================================================================
@@ -168,7 +171,7 @@ class ReaderFileShards:
 # Shard readers (shared reader type for all configs)
 # =============================================================================
 
-class ShardReader(Iterator[bytes]):
+class ShardReader(Iterator[Bytes]):
     """Active shard reader - shared type for all shard reader configs."""
 
     def close(self) -> None:
@@ -176,7 +179,7 @@ class ShardReader(Iterator[bytes]):
         ...
 
     def __iter__(self) -> "ShardReader": ...
-    def __next__(self) -> bytes: ...
+    def __next__(self) -> Bytes: ...
 
 
 class SequentialReaderSequentialOrderConfig:
@@ -191,9 +194,9 @@ class SequentialReaderSequentialOrderConfig:
     def __enter__(self) -> ShardReader: ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -209,9 +212,9 @@ class SequentialReaderRandomOrderConfig:
     def __enter__(self) -> ShardReader: ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -228,9 +231,9 @@ class RoundRobinReaderSequentialOrderConfig:
     def __enter__(self) -> ShardReader: ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -247,9 +250,9 @@ class RoundRobinReaderRandomOrderConfig:
     def __enter__(self) -> ShardReader: ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -284,9 +287,9 @@ class SequentialWriterConfig:
     def __enter__(self) -> "SequentialWriter": ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -302,12 +305,12 @@ class SequentialWriter:
 # Multi-threaded readers (shared reader type for all configs)
 # =============================================================================
 
-class MultiThreadedReader(Iterator[bytes]):
+class MultiThreadedReader(Iterator[Bytes]):
     """Active multi-threaded reader - shared type for all multi-threaded configs."""
 
     def close(self) -> None: ...
     def __iter__(self) -> "MultiThreadedReader": ...
-    def __next__(self) -> bytes: ...
+    def __next__(self) -> Bytes: ...
 
 
 class MultiThreadedReaderSequentialOrderConfig:
@@ -325,9 +328,9 @@ class MultiThreadedReaderSequentialOrderConfig:
     def __enter__(self) -> MultiThreadedReader: ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -346,9 +349,9 @@ class MultiThreadedReaderRandomOrderConfig:
     def __enter__(self) -> MultiThreadedReader: ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -373,9 +376,9 @@ class MultiThreadedWriterConfig:
     def __enter__(self) -> "MultiThreadedWriter": ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -398,9 +401,9 @@ class RoundRobinConfig:
     def __enter__(self) -> "TreeReader": ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -416,9 +419,9 @@ class ShuffleConfig:
     def __enter__(self) -> "TreeReader": ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -433,9 +436,9 @@ class ThreadedConfig:
     def __enter__(self) -> "TreeReader": ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
@@ -450,13 +453,13 @@ class SamplingConfig:
     def __enter__(self) -> "TreeReader": ...
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool: ...
 
 
-class TreeReader(Iterator[bytes]):
+class TreeReader(Iterator[Bytes]):
     """Internal Rust tree reader."""
 
     def close(self) -> None:
@@ -464,4 +467,4 @@ class TreeReader(Iterator[bytes]):
         ...
 
     def __iter__(self) -> "TreeReader": ...
-    def __next__(self) -> bytes | None: ...
+    def __next__(self) -> Bytes | None: ...

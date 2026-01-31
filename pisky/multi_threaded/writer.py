@@ -1,6 +1,6 @@
 """Multi-threaded shard writers."""
 
-from typing import Any
+from types import TracebackType
 
 from pisky._pisky import MultiThreadedWriterConfig as _MTWriterConfig
 from pisky._pisky import MultiThreadedWriter as _MTWriter
@@ -70,8 +70,8 @@ class MultiThreadedConfig:
         self._task_queue_capacity = task_queue_capacity
         self._enable_auto_sharding = enable_auto_sharding
         self._compression = compression
-        self._config: Any = None
-        self._writer: Any = None
+        self._config: _MTWriterConfig | None = None
+        self._writer: MultiThreadedWriter | None = None
 
     def __enter__(self) -> MultiThreadedWriter:
         py_compression = self._compression._to_py()
@@ -90,9 +90,9 @@ class MultiThreadedConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._writer is not None:
             self._writer._close()

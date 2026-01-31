@@ -6,7 +6,7 @@ import tempfile
 import pytest
 
 from pisky import RecordWriterConfig, RecordReaderConfig
-from pisky.tree import ThreadedConfig, ShuffleConfig, RoundRobinConfig
+from pisky.tree import ThreadedConfig, ShuffleConfig, RoundRobinConfig, WeightedNodeConfig
 
 
 class TestThreadedConfig:
@@ -206,6 +206,35 @@ class TestThreadedConfig:
 
             expected = [f"a{i}".encode() for i in range(10)] + [f"b{i}".encode() for i in range(10)]
             assert sorted(records) == sorted(expected)
+
+
+class TestThreadedWeight:
+    """Tests for ThreadedConfig weight behavior."""
+
+    def test_threaded_weight_passes_through_none(self):
+        """Test that threaded passes through None weight from unweighted child."""
+        config = ThreadedConfig(RecordReaderConfig("dummy.disky"), buffer_size=10)
+        assert config.weight is None
+
+    def test_threaded_weight_passes_through_weighted_child(self):
+        """Test that threaded passes through weight from weighted child."""
+        config = ThreadedConfig(
+            WeightedNodeConfig(RecordReaderConfig("dummy.disky"), 3.0),
+            buffer_size=10,
+        )
+        assert config.weight == 3.0
+
+    def test_threaded_weight_passes_through_stacked_weights(self):
+        """Test that threaded passes through stacked weights (additive)."""
+        config = ThreadedConfig(
+            WeightedNodeConfig(
+                WeightedNodeConfig(RecordReaderConfig("dummy.disky"), 2.0),
+                3.0,
+            ),
+            buffer_size=10,
+        )
+        # Stacked weights are additive: 2.0 + 3.0 = 5.0
+        assert config.weight == 5.0
 
 
 class TestThreadedReaderClose:

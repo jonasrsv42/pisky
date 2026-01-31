@@ -1,11 +1,12 @@
 """Shard readers."""
 
-from typing import Any
+from types import TracebackType
 
 from pisky._pisky import RoundRobinReaderRandomOrderConfig as _RRRandConfig
 from pisky._pisky import RoundRobinReaderSequentialOrderConfig as _RRSeqConfig
 from pisky._pisky import SequentialReaderRandomOrderConfig as _SeqRandConfig
 from pisky._pisky import SequentialReaderSequentialOrderConfig as _SeqSeqConfig
+from pisky._pisky import ShardReader
 from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards
 from pisky.shard.order import RandomRepeat, Sequential
@@ -56,10 +57,10 @@ class SequentialConfig:
     ) -> None:
         self._order = order
         self._corruption_strategy = corruption_strategy
-        self._config: Any = None
-        self._reader: Any = None
+        self._config: RustNode | None = None
+        self._reader: ShardReader | None = None
 
-    def _make_rust_config(self) -> Any:
+    def _make_rust_config(self) -> RustNode:
         """Create the Rust config object based on order type."""
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
@@ -71,16 +72,16 @@ class SequentialConfig:
             case _:
                 raise TypeError(f"Unknown order type: {type(self._order)}")
 
-    def __enter__(self) -> Any:
+    def __enter__(self) -> ShardReader:
         self._config = self._make_rust_config()
         self._reader = self._config.__enter__()
         return self._reader
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._reader is not None:
             self._reader.close()
@@ -91,6 +92,11 @@ class SequentialConfig:
     def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         return self._make_rust_config()
+
+    @property
+    def weight(self) -> float | None:
+        """Leaf node - no weight."""
+        return None
 
 
 class RoundRobinConfig:
@@ -122,10 +128,10 @@ class RoundRobinConfig:
         self._order = order
         self._corruption_strategy = corruption_strategy
         self._max_active = max_active
-        self._config: Any = None
-        self._reader: Any = None
+        self._config: RustNode | None = None
+        self._reader: ShardReader | None = None
 
-    def _make_rust_config(self) -> Any:
+    def _make_rust_config(self) -> RustNode:
         """Create the Rust config object based on order type."""
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
@@ -139,16 +145,16 @@ class RoundRobinConfig:
             case _:
                 raise TypeError(f"Unknown order type: {type(self._order)}")
 
-    def __enter__(self) -> Any:
+    def __enter__(self) -> ShardReader:
         self._config = self._make_rust_config()
         self._reader = self._config.__enter__()
         return self._reader
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._reader is not None:
             self._reader.close()
@@ -159,3 +165,8 @@ class RoundRobinConfig:
     def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         return self._make_rust_config()
+
+    @property
+    def weight(self) -> float | None:
+        """Leaf node - no weight."""
+        return None

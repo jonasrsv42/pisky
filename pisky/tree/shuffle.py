@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from types import TracebackType
 
 from pisky._pisky import ShuffleConfig as _ShuffleConfig
 from pisky.tree.node import NodeConfig, RustNode
@@ -69,9 +69,9 @@ class ShuffleConfig:
 
     def __exit__(
         self,
-        exc_type: type | None,
+        exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: TracebackType | None,
     ) -> bool:
         if self._reader is not None:
             self._reader.close()
@@ -82,3 +82,8 @@ class ShuffleConfig:
         """Convert this config to its Rust equivalent for tree composition."""
         rust_child = self._child._to_rust_node()
         return _ShuffleConfig(rust_child, self._buffer_size, self._seed)
+
+    @property
+    def weight(self) -> float | None:
+        """Subtree weight (pass through from child)."""
+        return self._child.weight
