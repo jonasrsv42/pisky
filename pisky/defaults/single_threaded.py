@@ -63,7 +63,7 @@ def write_shards(
     Args:
         dir_path: Directory to write shard files to
         pattern: Prefix for shard file names (default: "shard")
-        max_shard_bytes: Max bytes per shard before rotating (default: None = no limit)
+        max_shard_bytes: Max bytes per shard before rotating (default: None = 1GB)
         compression: Zstd compression level (default: 3, None for no compression)
         append: Whether to append to existing shards (default: False)
 
