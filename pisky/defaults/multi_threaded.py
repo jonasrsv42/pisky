@@ -1,0 +1,118 @@
+"""
+Multi-threaded convenience functions for reading and writing shards.
+"""
+
+from contextlib import contextmanager
+from pathlib import Path
+
+from pisky.compression import Zstd, Uncompressed
+from pisky.corruption import CorruptionStrategy
+from pisky.shard.file_shards import FileShards as ReaderFileShards
+from pisky.shard.order import Sequential, RandomRepeat
+from pisky.shard.writer import FileShards as WriterFileShards
+from pisky.multi_threaded.reader import MultiThreadedConfig as ReaderConfig
+from pisky.multi_threaded.writer import MultiThreadedConfig as WriterConfig
+
+
+@contextmanager
+def read_shards_parallel(
+    dir_path: str | Path,
+    pattern: str = "shard",
+    num_parallel: int = 2,
+    worker_threads: int | None = None,
+    shuffle: bool = False,
+    seed: int | None = None,
+    corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
+):
+    """
+    Read records from sharded files in parallel (multi-threaded).
+
+    Args:
+        dir_path: Directory containing shard files
+        pattern: Glob pattern prefix for shard files (default: "shard")
+        num_parallel: Number of shards to read in parallel (default: 2)
+        worker_threads: Number of worker threads (default: auto)
+        shuffle: Whether to shuffle shards and repeat infinitely (default: False)
+        seed: Random seed for shuffling (required if shuffle=True)
+        corruption_strategy: How to handle corrupt records (default: ERROR)
+
+    Yields:
+        Iterator over records from all shards
+
+    Example:
+        from pisky.defaults import read_shards_parallel
+
+        # Sequential reading
+        with read_shards_parallel("/data/dataset", num_parallel=4) as reader:
+            for record in reader:
+                process(record)
+
+        # Shuffled infinite reading (for training)
+        with read_shards_parallel("/data/dataset", shuffle=True, seed=42) as reader:
+            for i, record in enumerate(reader):
+                if i >= 10000:
+                    break
+                process(record)
+    """
+    dir_path = Path(dir_path)
+    shards = ReaderFileShards.from_pattern(str(dir_path), pattern)
+
+    if shuffle:
+        if seed is None:
+            raise ValueError("seed is required when shuffle=True")
+        order = RandomRepeat(shards, seed=seed)
+    else:
+        order = Sequential(shards)
+
+    with ReaderConfig(
+        order,
+        num_parallel=num_parallel,
+        worker_threads=worker_threads,
+        corruption_strategy=corruption_strategy,
+    ) as reader:
+        yield reader
+
+
+@contextmanager
+def write_shards_parallel(
+    dir_path: str | Path,
+    pattern: str = "shard",
+    num_shards: int = 2,
+    worker_threads: int | None = None,
+    compression: int | None = 3,
+    append: bool = False,
+):
+    """
+    Write records to sharded files in parallel (multi-threaded).
+
+    Args:
+        dir_path: Directory to write shard files to
+        pattern: Prefix for shard file names (default: "shard")
+        num_shards: Number of shards to write to concurrently (default: 2)
+        worker_threads: Number of worker threads (default: auto)
+        compression: Zstd compression level (default: 3, None for no compression)
+        append: Whether to append to existing shards (default: False)
+
+    Yields:
+        Writer object with write(record) method
+
+    Example:
+        from pisky.defaults import write_shards_parallel
+
+        with write_shards_parallel("/data/dataset", num_shards=4) as writer:
+            for record in records:
+                writer.write(record)
+    """
+    dir_path = Path(dir_path)
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    comp = Zstd(compression) if compression is not None else Uncompressed()
+    shards = WriterFileShards.from_pattern(str(dir_path), pattern, append=append)
+
+    with WriterConfig(
+        shards,
+        num_shards=num_shards,
+        worker_threads=worker_threads,
+        compression=comp,
+    ) as writer:
+        yield writer
