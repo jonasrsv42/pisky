@@ -5,7 +5,7 @@
 
 pub mod node;
 mod round_robin;
-mod sampling;
+pub mod sampling;
 pub mod shuffle;
 mod threaded;
 

@@ -28,8 +28,8 @@ use super::node::{PyNodeEnum, PyTreeReader};
 #[pyclass(name = "SamplingConfig")]
 #[derive(Clone)]
 pub struct PySamplingConfig {
-    sources: Vec<(Box<PyNodeEnum>, f64)>,
-    seed: Option<u64>,
+    pub sources: Vec<(Box<PyNodeEnum>, f64)>,
+    pub seed: Option<u64>,
 }
 
 #[pymethods]
