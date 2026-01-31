@@ -1,130 +1,92 @@
 """
-Example of using the Pisky RecordWriter and RecordReader.
+Example of using the Pisky RecordWriterConfig and RecordReaderConfig.
 
 This module demonstrates how to write and read records using Pisky.
 """
 
-import os
 import tempfile
-from pisky import RecordWriter, RecordReader
+from pathlib import Path
+from pisky import RecordWriterConfig, RecordReaderConfig
 
-def write_and_read_example():
+
+def write_and_read_example(temp_dir: Path):
     """
     Example of writing records to a file and then reading them back.
-    
-    This demonstrates the basic write-then-read workflow.
     """
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
-        temp_path = temp.name
-    
-    try:
-        # Write records
-        with RecordWriter(temp_path) as writer:
-            print(f"Writing records to {temp_path}")
-            writer.write_record(b"Hello, world!")
-            writer.write_record(b"This is record #2")
-            writer.write_record(b"And this is record #3")
-        
-        # Read records
-        print(f"\nReading records from {temp_path}")
-        with RecordReader(temp_path) as reader:
-            for i, record in enumerate(reader, 1):
-                # The record is a pyo3_bytes::PyBytes object
-                # Use to_bytes() to convert to regular Python bytes for decode
-                print(f"Record {i}: {record.to_bytes().decode('utf-8')}")
-    
-    finally:
-        # Clean up the temporary file
-        if os.path.exists(temp_path):
-            os.unlink(temp_path)
-            print(f"\nDeleted temporary file: {temp_path}")
+    path = temp_dir / "data.disky"
 
-def write_and_read_manual_example():
-    """
-    Example of writing and reading records without using context managers.
-    
-    This demonstrates how to manually manage the writer and reader.
-    """
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
-        temp_path = temp.name
-    
-    try:
-        # Write records manually
-        print(f"Writing records to {temp_path} (manual mode)")
-        writer = RecordWriter(temp_path)
-        writer.write_record(b"First record")
-        writer.write_record(b"Second record")
-        writer.flush()  # Explicitly flush data
-        writer.close()  # Explicitly close the writer
-        
-        # Read records manually
-        print(f"\nReading records from {temp_path} (manual mode)")
-        reader = RecordReader(temp_path)
-        count = 0
-        
-        while True:
-            record = reader.next_record()
-            if record is None:
-                break
-            
-            count += 1
-            # Convert from Rust bytes to Python bytes for decode
-            print(f"Record {count}: {record.to_bytes().decode('utf-8')}")
-        
-        # No need to explicitly close the reader
-    
-    finally:
-        # Clean up the temporary file
-        if os.path.exists(temp_path):
-            os.unlink(temp_path)
-            print(f"\nDeleted temporary file: {temp_path}")
+    # Write records
+    print(f"Writing records to {path}")
+    with RecordWriterConfig(path) as writer:
+        writer.write(b"Hello, world!")
+        writer.write(b"This is record #2")
+        writer.write(b"And this is record #3")
 
-def write_large_file_example(num_records=1000):
+    # Read records
+    print(f"Reading records from {path}")
+    with RecordReaderConfig(path) as reader:
+        for i, record in enumerate(reader, 1):
+            # Use bytes() to convert to regular Python bytes
+            print(f"Record {i}: {bytes(record).decode('utf-8')}")
+
+
+def write_large_file_example(temp_dir: Path, num_records: int = 1000):
     """
     Example of writing and reading a larger number of records.
-    
+
     Args:
         num_records: Number of records to write
     """
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(suffix=".disky", delete=False) as temp:
-        temp_path = temp.name
-    
-    try:
-        # Write many records
-        print(f"Writing {num_records} records to {temp_path}")
-        with RecordWriter(temp_path) as writer:
-            for i in range(num_records):
-                writer.write_record(f"Record #{i}".encode('utf-8'))
-        
-        # Get file size
-        file_size = os.path.getsize(temp_path)
-        print(f"File size: {file_size} bytes")
-        
-        # Read and count records
-        print(f"Reading and counting records from {temp_path}")
-        count = 0
-        with RecordReader(temp_path) as reader:
-            for _ in reader:
-                count += 1
-        
-        print(f"Read {count} records from file")
-        print(f"Average record size: {file_size / count:.2f} bytes")
-    
-    finally:
-        # Clean up the temporary file
-        if os.path.exists(temp_path):
-            os.unlink(temp_path)
-            print(f"Deleted temporary file: {temp_path}")
+    path = temp_dir / "large.disky"
+
+    # Write many records
+    print(f"\nWriting {num_records} records to {path}")
+    with RecordWriterConfig(path) as writer:
+        for i in range(num_records):
+            writer.write(f"Record #{i}".encode("utf-8"))
+
+    # Get file size
+    file_size = path.stat().st_size
+    print(f"File size: {file_size} bytes")
+
+    # Read and count records
+    print(f"Reading and counting records from {path}")
+    count = 0
+    with RecordReaderConfig(path) as reader:
+        for _ in reader:
+            count += 1
+
+    print(f"Read {count} records from file")
+    print(f"Average record size: {file_size / count:.2f} bytes")
+
+
+def count_records_example(temp_dir: Path):
+    """
+    Example of counting records using the static method.
+    """
+    path = temp_dir / "count_test.disky"
+
+    # Write some records
+    with RecordWriterConfig(path) as writer:
+        for i in range(100):
+            writer.write(f"Record {i}".encode())
+
+    # Count using static method
+    count = RecordReaderConfig.count_records(path)
+    print(f"\nCounted {count} records using RecordReaderConfig.count_records()")
+
 
 if __name__ == "__main__":
-    print("=== Basic Write and Read Example ===")
-    write_and_read_example()
-    
-    print("\n=== Manual Write and Read Example ===")
-    write_and_read_manual_example()
-    
-    print("\n=== Large File Example ===")
-    write_large_file_example(1000)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+
+        print("=== Basic Write and Read Example ===")
+        write_and_read_example(temp_dir)
+
+        print("\n=== Large File Example ===")
+        write_large_file_example(temp_dir, 1000)
+
+        print("\n=== Count Records Example ===")
+        count_records_example(temp_dir)
+
+    print("\nTemporary directory cleaned up automatically")
