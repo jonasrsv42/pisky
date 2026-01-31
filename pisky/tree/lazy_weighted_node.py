@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from types import TracebackType
 
 from pisky.bytes import Bytes
+from pisky.tree.named.named_node import NamedNode
 from pisky.tree.node import NodeConfig, RustNode
 
 
@@ -79,3 +80,16 @@ class LazyWeightedNodeConfig:
         if child_weight is None:
             return self._weight
         return self._weight + child_weight
+
+    def named_children(self) -> Sequence[NamedNode]:
+        """Return this node and its subtree."""
+        self._resolve()
+        assert self._child is not None
+        return [
+            NamedNode(
+                name=self.__class__.__name__,
+                weight=self.weight,
+                children=self._child.named_children(),
+                metadata={"weight": self._weight},
+            )
+        ]

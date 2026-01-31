@@ -5,10 +5,13 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any
 
+from collections.abc import Sequence
+
 from .._pisky import RecordReader as _RecordReader
 from .._pisky import RecordReaderConfig as _RecordReaderConfig
 from ..bytes import Bytes
 from ..corruption import CorruptionStrategy
+from ..tree.named.named_node import NamedNode
 from ..tree.node import RustNode
 
 PathType = str | Path | PathLike[Any]
@@ -113,6 +116,17 @@ class RecordReaderConfig:
     def weight(self) -> float | None:
         """Leaf node - no weight."""
         return None
+
+    def named_children(self) -> Sequence[NamedNode]:
+        """Return this node as a leaf."""
+        return [
+            NamedNode(
+                name=self.__class__.__name__,
+                weight=self.weight,
+                children=[],
+                metadata={"path": self._path},
+            )
+        ]
 
     @staticmethod
     def count_records(

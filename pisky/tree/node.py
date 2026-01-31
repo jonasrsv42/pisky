@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
+from pisky.tree.named.named_node import NamedNode
+
 from pisky._pisky import RecordReaderConfig as RustRecordReaderConfig
 from pisky._pisky import RoundRobinConfig as RustRoundRobinConfig
 from pisky._pisky import RoundRobinReaderRandomOrderConfig
@@ -55,5 +57,14 @@ class NodeConfig(Protocol):
         Returns:
             float - Computed subtree weight
             None - No weight in this subtree (unweighted path)
+        """
+        ...
+
+    def named_children(self) -> Sequence[NamedNode]:
+        """Gather named nodes from this subtree.
+
+        Returns:
+            Sequence of NamedNode from NamedNodeConfig nodes in subtree.
+            Empty sequence if no named nodes in subtree.
         """
         ...

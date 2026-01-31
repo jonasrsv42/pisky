@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from types import TracebackType
 
 from pisky._pisky import ShuffleConfig as _ShuffleConfig
+from pisky.tree.named.named_node import NamedNode
 from pisky.tree.node import NodeConfig, RustNode
 from pisky.tree.round_robin import TreeReader
 
@@ -87,3 +89,17 @@ class ShuffleConfig:
     def weight(self) -> float | None:
         """Subtree weight (pass through from child)."""
         return self._child.weight
+
+    def named_children(self) -> Sequence[NamedNode]:
+        """Return this node and its subtree."""
+        metadata = {"buffer_size": self._buffer_size}
+        if self._seed is not None:
+            metadata["seed"] = self._seed
+        return [
+            NamedNode(
+                name=self.__class__.__name__,
+                weight=self.weight,
+                children=self._child.named_children(),
+                metadata=metadata,
+            )
+        ]

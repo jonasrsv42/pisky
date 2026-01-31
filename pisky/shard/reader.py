@@ -1,5 +1,6 @@
 """Shard readers."""
 
+from collections.abc import Sequence
 from types import TracebackType
 
 from pisky._pisky import RoundRobinReaderRandomOrderConfig as _RRRandConfig
@@ -10,6 +11,7 @@ from pisky._pisky import ShardReader
 from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards
 from pisky.shard.order import RandomRepeat, Sequential
+from pisky.tree.named.named_node import NamedNode
 from pisky.tree.node import RustNode
 
 # Re-export FileShards so users can do `from pisky.shard import reader; reader.FileShards`
@@ -98,6 +100,18 @@ class SequentialConfig:
         """Leaf node - no weight."""
         return None
 
+    def named_children(self) -> Sequence[NamedNode]:
+        """Return this node as a leaf."""
+        metadata = {"order": self._order.__class__.__name__}
+        return [
+            NamedNode(
+                name=self.__class__.__name__,
+                weight=self.weight,
+                children=[],
+                metadata=metadata,
+            )
+        ]
+
 
 class RoundRobinConfig:
     """
@@ -170,3 +184,17 @@ class RoundRobinConfig:
     def weight(self) -> float | None:
         """Leaf node - no weight."""
         return None
+
+    def named_children(self) -> Sequence[NamedNode]:
+        """Return this node as a leaf."""
+        metadata = {"order": self._order.__class__.__name__}
+        if self._max_active is not None:
+            metadata["max_active"] = self._max_active
+        return [
+            NamedNode(
+                name=self.__class__.__name__,
+                weight=self.weight,
+                children=[],
+                metadata=metadata,
+            )
+        ]

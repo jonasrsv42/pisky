@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from types import TracebackType
 
 from pisky._pisky import RoundRobinConfig as _RoundRobinConfig
 from pisky._pisky import TreeReader as _TreeReader
 from pisky.bytes import Bytes
+from pisky.tree.named.named_node import NamedNode
 from pisky.tree.node import NodeConfig, RustNode
 
 
@@ -130,3 +132,16 @@ class RoundRobinConfig:
             f"RoundRobinConfig has mixed weights: children at indices {missing} "
             f"are missing weights"
         )
+
+    def named_children(self) -> Sequence[NamedNode]:
+        """Return this node with children from all child nodes."""
+        all_children: list[NamedNode] = []
+        for child in self._children:
+            all_children.extend(child.named_children())
+        return [
+            NamedNode(
+                name=self.__class__.__name__,
+                weight=self.weight,
+                children=all_children,
+            )
+        ]

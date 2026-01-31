@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from types import TracebackType
 
 from pisky._pisky import SamplingConfig as _SamplingConfig
+from pisky.tree.named.named_node import NamedNode
 from pisky.tree.node import NodeConfig, RustNode
 from pisky.tree.round_robin import TreeReader
 
@@ -119,3 +120,20 @@ class AutoSamplingConfig:
             )
 
         return sum(child_weights)  # type: ignore
+
+    def named_children(self) -> Sequence[NamedNode]:
+        """Return this node with children from all child nodes."""
+        all_children: list[NamedNode] = []
+        for child in self._children:
+            all_children.extend(child.named_children())
+        metadata = {}
+        if self._seed is not None:
+            metadata["seed"] = self._seed
+        return [
+            NamedNode(
+                name=self.__class__.__name__,
+                weight=self.weight,
+                children=all_children,
+                metadata=metadata,
+            )
+        ]
