@@ -106,6 +106,7 @@ def write_shards_parallel(
     worker_threads: int | None = None,
     compression: int | None = 3,
     append: bool = False,
+    enable_auto_sharding: bool = True,
 ):
     """
     Write records to sharded files in parallel (multi-threaded).
@@ -116,7 +117,10 @@ def write_shards_parallel(
         num_shards: Number of shards to write to concurrently (default: 2)
         worker_threads: Number of worker threads (default: auto)
         compression: Zstd compression level (default: 3, None for no compression)
-        append: Whether to append to existing shards (default: False)
+        append: Start numbering after existing shards instead of overwriting
+            (e.g., creates shard_3 if shard_0-2 exist). Default: False
+        enable_auto_sharding: Automatically create new shards when current ones
+            reach the byte limit, rotating seamlessly (default: True)
 
     Yields:
         Writer object with write(record) method
@@ -139,5 +143,6 @@ def write_shards_parallel(
         num_shards=num_shards,
         worker_threads=worker_threads,
         compression=comp,
+        enable_auto_sharding=enable_auto_sharding,
     ) as writer:
         yield writer
