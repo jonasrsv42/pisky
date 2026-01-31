@@ -422,6 +422,40 @@ class ShuffleConfig:
     ) -> bool: ...
 
 
+class ThreadedConfig:
+    """Internal Rust threaded config."""
+
+    def __init__(
+        self,
+        child: Any,
+        buffer_size: int = 64,
+    ) -> None: ...
+    def __enter__(self) -> "TreeReader": ...
+    def __exit__(
+        self,
+        exc_type: type | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool: ...
+
+
+class SamplingConfig:
+    """Internal Rust sampling config."""
+
+    def __init__(
+        self,
+        sources: list[tuple[Any, float]],
+        seed: int | None = None,
+    ) -> None: ...
+    def __enter__(self) -> "TreeReader": ...
+    def __exit__(
+        self,
+        exc_type: type | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool: ...
+
+
 class TreeReader(Iterator[bytes]):
     """Internal Rust tree reader."""
 

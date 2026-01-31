@@ -12,7 +12,7 @@ use crate::shard::{
 };
 use crate::single::PyRecordReaderConfig;
 
-use super::{PyRoundRobinConfig, PyShuffleConfig};
+use super::{PyRoundRobinConfig, PySamplingConfig, PyShuffleConfig, PyThreadedConfig};
 
 /// Enum of all Python config types that can be used as tree nodes.
 ///
@@ -22,15 +22,14 @@ use super::{PyRoundRobinConfig, PyShuffleConfig};
 pub enum PyNodeEnum {
     RecordReaderConfig(PyRecordReaderConfig),
     RoundRobinConfig(PyRoundRobinConfig),
+    SamplingConfig(PySamplingConfig),
     ShuffleConfig(PyShuffleConfig),
+    ThreadedConfig(PyThreadedConfig),
     // Shard readers (4 variants: 2 reading strategies × 2 iteration orders)
     SeqReaderSeqOrderConfig(PySeqReaderSeqOrderConfig),
     SeqReaderRandOrderConfig(PySeqReaderRandOrderConfig),
     RRReaderSeqOrderConfig(PyRRReaderSeqOrderConfig),
     RRReaderRandOrderConfig(PyRRReaderRandOrderConfig),
-    // TODO: Add more variants as we implement them:
-    // SamplingConfig(PySamplingConfig),
-    // ThreadedConfig(PyThreadedConfig),
 }
 
 impl Node for PyNodeEnum {
@@ -38,7 +37,9 @@ impl Node for PyNodeEnum {
         match *self {
             Self::RecordReaderConfig(c) => Box::new(c).make(),
             Self::RoundRobinConfig(c) => Box::new(c).make(),
+            Self::SamplingConfig(c) => Box::new(c).make(),
             Self::ShuffleConfig(c) => Box::new(c).make(),
+            Self::ThreadedConfig(c) => Box::new(c).make(),
             Self::SeqReaderSeqOrderConfig(c) => Box::new(c).make(),
             Self::SeqReaderRandOrderConfig(c) => Box::new(c).make(),
             Self::RRReaderSeqOrderConfig(c) => Box::new(c).make(),

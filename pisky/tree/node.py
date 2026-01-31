@@ -6,9 +6,11 @@ from pisky._pisky import RecordReaderConfig as RustRecordReaderConfig
 from pisky._pisky import RoundRobinConfig as RustRoundRobinConfig
 from pisky._pisky import RoundRobinReaderRandomOrderConfig
 from pisky._pisky import RoundRobinReaderSequentialOrderConfig
+from pisky._pisky import SamplingConfig as RustSamplingConfig
 from pisky._pisky import SequentialReaderRandomOrderConfig
 from pisky._pisky import SequentialReaderSequentialOrderConfig
 from pisky._pisky import ShuffleConfig as RustShuffleConfig
+from pisky._pisky import ThreadedConfig as RustThreadedConfig
 
 RustNode = (
     SequentialReaderSequentialOrderConfig
@@ -17,7 +19,9 @@ RustNode = (
     | RoundRobinReaderRandomOrderConfig
     | RustRoundRobinConfig
     | RustRecordReaderConfig
+    | RustSamplingConfig
     | RustShuffleConfig
+    | RustThreadedConfig
 )
 
 

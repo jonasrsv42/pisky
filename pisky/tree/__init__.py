@@ -6,6 +6,15 @@ to create complex data pipelines.
 
 from pisky.tree.node import NodeConfig, RustNode
 from pisky.tree.round_robin import RoundRobinConfig
+from pisky.tree.sampling import SamplingConfig
 from pisky.tree.shuffle import ShuffleConfig
+from pisky.tree.threaded import ThreadedConfig
 
-__all__ = ["NodeConfig", "RoundRobinConfig", "RustNode", "ShuffleConfig"]
+__all__ = [
+    "NodeConfig",
+    "RoundRobinConfig",
+    "RustNode",
+    "SamplingConfig",
+    "ShuffleConfig",
+    "ThreadedConfig",
+]

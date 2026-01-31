@@ -25,7 +25,7 @@ use shard::{
     PySequentialWriterConfig, PyShardReader, PyWriterFileShards,
 };
 use single::{PyRecordReader, PyRecordReaderConfig, PyRecordWriter, PyRecordWriterConfig};
-use tree::{PyRoundRobinConfig, PyShuffleConfig, PyTreeReader};
+use tree::{PyRoundRobinConfig, PySamplingConfig, PyShuffleConfig, PyThreadedConfig, PyTreeReader};
 
 // Legacy types
 use corruption::PyCorruptionStrategy;
@@ -72,7 +72,9 @@ fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Tree-based composition API
     m.add_class::<PyRoundRobinConfig>()?;
+    m.add_class::<PySamplingConfig>()?;
     m.add_class::<PyShuffleConfig>()?;
+    m.add_class::<PyThreadedConfig>()?;
     m.add_class::<PyTreeReader>()?;
 
     // Add functions to the module
