@@ -14,15 +14,17 @@ use crate::compression::PyCompression;
 /// until you enter the context manager.
 ///
 /// Example:
-///     from pisky import RecordWriterConfig, Zstd, Uncompressed
+/// ```text
+/// from pisky import RecordWriterConfig, Zstd, Uncompressed
 ///
-///     # With compression
-///     with RecordWriterConfig("data.disky", compression=Zstd(3)) as writer:
-///         writer.write(b"hello")
+/// # With compression
+/// with RecordWriterConfig("data.disky", compression=Zstd(3)) as writer:
+///     writer.write(b"hello")
 ///
-///     # Without compression (default)
-///     with RecordWriterConfig("data.disky") as writer:
-///         writer.write(b"hello")
+/// # Without compression (default)
+/// with RecordWriterConfig("data.disky") as writer:
+///     writer.write(b"hello")
+/// ```
 #[pyclass(name = "RecordWriterConfig")]
 #[derive(Clone)]
 pub struct PyRecordWriterConfig {
