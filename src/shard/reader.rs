@@ -137,9 +137,9 @@ impl Node for PySeqReaderSeqOrderConfig {
 #[pyclass(name = "SequentialReaderRandomOrderConfig")]
 #[derive(Clone)]
 pub struct PySeqReaderRandOrderConfig {
-    shards: PyFileShards,
-    corruption_strategy: Option<CorruptionStrategy>,
-    seed: Option<u64>,
+    pub shards: PyFileShards,
+    pub corruption_strategy: Option<CorruptionStrategy>,
+    pub seed: Option<u64>,
 }
 
 #[pymethods]

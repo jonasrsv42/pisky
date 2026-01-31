@@ -6,7 +6,7 @@
 pub mod node;
 mod round_robin;
 mod sampling;
-mod shuffle;
+pub mod shuffle;
 mod threaded;
 
 pub use node::{PyNodeEnum, PyTreeReader};

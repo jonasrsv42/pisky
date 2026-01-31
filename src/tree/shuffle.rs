@@ -23,9 +23,9 @@ use super::node::{PyNodeEnum, PyTreeReader};
 #[pyclass(name = "ShuffleConfig")]
 #[derive(Clone)]
 pub struct PyShuffleConfig {
-    child: Box<PyNodeEnum>,
-    buffer_size: usize,
-    seed: Option<u64>,
+    pub child: Box<PyNodeEnum>,
+    pub buffer_size: usize,
+    pub seed: Option<u64>,
 }
 
 #[pymethods]

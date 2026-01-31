@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 // New config-based API modules
 mod compression;
 mod multi_threaded;
-mod shard;
+pub mod shard;
 mod single;
 pub mod tree;
 
