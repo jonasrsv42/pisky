@@ -6,7 +6,7 @@ mod compression;
 mod multi_threaded;
 mod shard;
 mod single;
-mod tree;
+pub mod tree;
 
 // Shared utilities
 mod corruption;
