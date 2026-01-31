@@ -8,8 +8,10 @@ import pytest
 from pisky.defaults import (
     read_shards,
     write_shards,
+    count_shards,
     read_shards_parallel,
     write_shards_parallel,
+    count_shards_parallel,
 )
 
 
@@ -97,6 +99,18 @@ class TestSingleThreadedDefaults:
             with pytest.raises(ValueError, match="No shard files"):
                 with read_shards(tmpdir) as reader:
                     list(reader)
+
+    def test_count_shards(self):
+        """Test counting records across shards."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            records = [f"record_{i}".encode() for i in range(100)]
+
+            with write_shards(tmpdir, max_shard_bytes=1000) as writer:
+                for record in records:
+                    writer.write(record)
+
+            count = count_shards(tmpdir)
+            assert count == 100
 
     def test_custom_pattern(self):
         """Test custom shard pattern prefix."""
@@ -192,6 +206,18 @@ class TestMultiThreadedDefaults:
                     read_records.append(record.to_bytes())
 
             assert sorted(read_records) == [b"first", b"second"]
+
+    def test_count_shards_parallel(self):
+        """Test counting records across shards (parallel)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            records = [f"record_{i}".encode() for i in range(100)]
+
+            with write_shards_parallel(tmpdir, num_shards=2) as writer:
+                for record in records:
+                    writer.write(record)
+
+            count = count_shards_parallel(tmpdir)
+            assert count == 100
 
     def test_write_parallel_no_compression(self):
         """Test parallel writing without compression."""

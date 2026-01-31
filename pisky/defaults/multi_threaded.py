@@ -8,10 +8,35 @@ from pathlib import Path
 from pisky.compression import Zstd, Uncompressed
 from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards as ReaderFileShards
+from pisky.multi_threaded.reader import count_records as _count_records
 from pisky.shard.order import Sequential, RandomRepeat
 from pisky.shard.writer import FileShards as WriterFileShards
 from pisky.multi_threaded.reader import MultiThreadedConfig as ReaderConfig
 from pisky.multi_threaded.writer import MultiThreadedConfig as WriterConfig
+
+
+def count_shards_parallel(
+    dir_path: str | Path,
+    pattern: str = "shard",
+) -> int:
+    """
+    Count total records across all shards in a directory (multi-threaded).
+
+    Args:
+        dir_path: Directory containing shard files
+        pattern: Glob pattern prefix for shard files (default: "shard")
+
+    Returns:
+        Total number of records across all shards
+
+    Example:
+        from pisky.defaults import count_shards_parallel
+
+        total = count_shards_parallel("/data/dataset")
+        print(f"Found {total} records")
+    """
+    shards = ReaderFileShards.from_pattern(str(dir_path), pattern)
+    return _count_records(shards)
 
 
 @contextmanager
