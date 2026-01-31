@@ -23,6 +23,7 @@ class NamedNode:
     weight: float | None
     children: Sequence[NamedNode]
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    terse: bool = False
 
     def __str__(self) -> str:
         """Return a tree-formatted string representation."""

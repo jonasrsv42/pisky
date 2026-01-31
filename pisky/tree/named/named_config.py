@@ -72,5 +72,6 @@ class NamedNodeConfig:
                 name=self._name,
                 weight=self._child.weight,
                 children=self._child.named_children(),
+                terse=True,
             )
         ]

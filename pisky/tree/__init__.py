@@ -6,7 +6,7 @@ to create complex data pipelines.
 
 from pisky.tree.auto_sampling import AutoSamplingConfig
 from pisky.tree.lazy_weighted_node import LazyWeightedNodeConfig
-from pisky.tree.named import NamedNode, NamedNodeConfig, named_tree
+from pisky.tree.named import NamedNode, NamedNodeConfig, named_tree, terse_tree
 from pisky.tree.node import NodeConfig, RustNode
 from pisky.tree.round_robin import RoundRobinConfig
 from pisky.tree.sampling import SamplingConfig
@@ -27,4 +27,5 @@ __all__ = [
     "ThreadedConfig",
     "WeightedNodeConfig",
     "named_tree",
+    "terse_tree",
 ]

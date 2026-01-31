@@ -9,6 +9,7 @@ from pisky._pisky import RoundRobinConfig as _RoundRobinConfig
 from pisky._pisky import TreeReader as _TreeReader
 from pisky.bytes import Bytes
 from pisky.tree.named.named_node import NamedNode
+from pisky.tree.named.tree import format_weight_error
 from pisky.tree.node import NodeConfig, RustNode
 
 
@@ -125,13 +126,7 @@ class RoundRobinConfig:
             return sum(weights)  # type: ignore
 
         # Mixed: error with details
-        missing = [
-            i for i, w in enumerate(weights) if w is None
-        ]
-        raise ValueError(
-            f"RoundRobinConfig has mixed weights: children at indices {missing} "
-            f"are missing weights"
-        )
+        raise ValueError(format_weight_error("RoundRobinConfig", self._children))
 
     def named_children(self) -> Sequence[NamedNode]:
         """Return this node with children from all child nodes."""

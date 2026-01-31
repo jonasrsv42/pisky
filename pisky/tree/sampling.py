@@ -7,6 +7,7 @@ from types import TracebackType
 
 from pisky._pisky import SamplingConfig as _SamplingConfig
 from pisky.tree.named.named_node import NamedNode
+from pisky.tree.named.tree import format_weight_error
 from pisky.tree.node import NodeConfig, RustNode
 from pisky.tree.round_robin import TreeReader
 
@@ -117,13 +118,8 @@ class SamplingConfig:
             )
 
         # Mixed: error with details
-        missing = [
-            i for i, w in enumerate(child_weights) if w is None
-        ]
-        raise ValueError(
-            f"SamplingConfig has mixed weights: children at indices {missing} "
-            f"are missing weights"
-        )
+        children = [child for child, _ in self._sources]
+        raise ValueError(format_weight_error("SamplingConfig", children))
 
     def named_children(self) -> Sequence[NamedNode]:
         """Return this node with children from all sources."""

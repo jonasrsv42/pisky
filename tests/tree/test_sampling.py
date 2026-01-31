@@ -443,7 +443,7 @@ class TestSamplingWeight:
             (WeightedNodeConfig(RecordReaderConfig("a.disky"), 2.0), 3.0),
             (RecordReaderConfig("b.disky"), 1.0),  # unweighted
         ])
-        with pytest.raises(ValueError, match="missing weights"):
+        with pytest.raises(ValueError, match="missing weight"):
             _ = config.weight
 
 

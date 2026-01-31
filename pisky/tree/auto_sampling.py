@@ -7,6 +7,7 @@ from types import TracebackType
 
 from pisky._pisky import SamplingConfig as _SamplingConfig
 from pisky.tree.named.named_node import NamedNode
+from pisky.tree.named.tree import format_weight_error
 from pisky.tree.node import NodeConfig, RustNode
 from pisky.tree.round_robin import TreeReader
 
@@ -113,10 +114,8 @@ class AutoSamplingConfig:
             return None
 
         if any(w is None for w in child_weights):
-            missing = [i for i, w in enumerate(child_weights) if w is None]
             raise ValueError(
-                f"AutoSamplingConfig has mixed weights: children at indices "
-                f"{missing} are missing weights"
+                format_weight_error("AutoSamplingConfig", self._children)
             )
 
         return sum(child_weights)  # type: ignore

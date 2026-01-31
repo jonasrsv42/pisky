@@ -223,7 +223,7 @@ class TestAutoSamplingWeight:
             WeightedNodeConfig(RecordReaderConfig("a.disky"), 2.0),
             RecordReaderConfig("b.disky"),  # unweighted
         ])
-        with pytest.raises(ValueError, match="missing weights"):
+        with pytest.raises(ValueError, match="missing weight"):
             _ = config.weight
 
     def test_auto_sampling_weight_nested(self):

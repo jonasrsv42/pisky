@@ -11,6 +11,7 @@ from pisky.tree import (
     RoundRobinConfig,
     SamplingConfig,
     named_tree,
+    terse_tree,
 )
 
 
@@ -91,6 +92,12 @@ def test_print_tree():
     print("NAMED TREE OUTPUT:")
     print("=" * 60)
     print(tree)
+    print("=" * 60)
+
+    terse = terse_tree(config, "MultilingualPipeline")
+    print("\nTERSE TREE OUTPUT:")
+    print("=" * 60)
+    print(terse)
     print("=" * 60)
 
     # Basic assertions
