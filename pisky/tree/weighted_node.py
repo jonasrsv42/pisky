@@ -28,9 +28,9 @@ class WeightedNodeConfig:
         self._child = child
         self._weight = weight
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Delegate to wrapped child (transparent in Rust tree)."""
-        return self._child._to_rust_node()
+        return self._child.to_rust_node()
 
     def __enter__(self) -> Iterator[Bytes]:
         """Delegate to child."""

@@ -86,7 +86,7 @@ class RoundRobinConfig:
         self._reader: TreeReader | None = None
 
     def __enter__(self) -> TreeReader:
-        rust_children = [c._to_rust_node() for c in self._children]
+        rust_children = [c.to_rust_node() for c in self._children]
         rust_config = _RoundRobinConfig(rust_children)
         inner = rust_config.__enter__()
         self._reader = TreeReader(inner)
@@ -103,9 +103,9 @@ class RoundRobinConfig:
             self._reader = None
         return False
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
-        rust_children = [c._to_rust_node() for c in self._children]
+        rust_children = [c.to_rust_node() for c in self._children]
         return _RoundRobinConfig(rust_children)
 
     @property

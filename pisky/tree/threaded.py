@@ -60,7 +60,7 @@ class ThreadedConfig:
         self._reader: TreeReader | None = None
 
     def __enter__(self) -> TreeReader:
-        rust_child = self._child._to_rust_node()
+        rust_child = self._child.to_rust_node()
         rust_config = _ThreadedConfig(rust_child, self._buffer_size)
         inner = rust_config.__enter__()
         self._reader = TreeReader(inner)
@@ -77,9 +77,9 @@ class ThreadedConfig:
             self._reader = None
         return False
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
-        rust_child = self._child._to_rust_node()
+        rust_child = self._child.to_rust_node()
         return _ThreadedConfig(rust_child, self._buffer_size)
 
     @property

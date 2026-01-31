@@ -35,7 +35,7 @@ class NodeConfig(Protocol):
     """Protocol for configs that can be used as tree nodes.
 
     All nodes implement:
-    - _to_rust_node(): Build Rust tree for execution
+    - to_rust_node(): Build Rust tree for execution
     - weight: Subtree weight (None if unweighted path)
 
     Weight rules:
@@ -46,8 +46,12 @@ class NodeConfig(Protocol):
     - Leaf nodes without weight return None
     """
 
-    def _to_rust_node(self) -> RustNode:
-        """Convert this config to its Rust equivalent for tree composition."""
+    def to_rust_node(self) -> RustNode:
+        """Convert this config to its Rust equivalent for tree composition.
+
+        This is the public API for passing tree configs to other libraries
+        (e.g., smarts) that need to build the tree in Rust.
+        """
         ...
 
     @property

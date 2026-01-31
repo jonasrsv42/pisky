@@ -63,7 +63,7 @@ class ShuffleConfig:
         self._reader: TreeReader | None = None
 
     def __enter__(self) -> TreeReader:
-        rust_child = self._child._to_rust_node()
+        rust_child = self._child.to_rust_node()
         rust_config = _ShuffleConfig(rust_child, self._buffer_size, self._seed)
         inner = rust_config.__enter__()
         self._reader = TreeReader(inner)
@@ -80,9 +80,9 @@ class ShuffleConfig:
             self._reader = None
         return False
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
-        rust_child = self._child._to_rust_node()
+        rust_child = self._child.to_rust_node()
         return _ShuffleConfig(rust_child, self._buffer_size, self._seed)
 
     @property

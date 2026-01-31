@@ -76,7 +76,7 @@ class AutoSamplingConfig:
 
         # Build SamplingConfig with computed weights
         rust_sources = [
-            (child._to_rust_node(), w)
+            (child.to_rust_node(), w)
             for child, w in validated
         ]
         self._sampling = _SamplingConfig(rust_sources, self._seed)
@@ -96,11 +96,11 @@ class AutoSamplingConfig:
         self._sampling = None
         return False
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Build Rust sampling node with computed weights."""
         validated = self._validate_children()
         rust_sources = [
-            (child._to_rust_node(), w)
+            (child.to_rust_node(), w)
             for child, w in validated
         ]
         return _SamplingConfig(rust_sources, self._seed)

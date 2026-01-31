@@ -91,7 +91,7 @@ class SequentialConfig:
         self._config = None
         return False
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         return self._make_rust_config()
 
@@ -176,7 +176,7 @@ class RoundRobinConfig:
         self._config = None
         return False
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         return self._make_rust_config()
 

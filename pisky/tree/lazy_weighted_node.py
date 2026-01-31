@@ -17,7 +17,7 @@ LazyWeightedNodeConfigFactory = Callable[[], tuple[NodeConfig, float]]
 class LazyWeightedNodeConfig:
     """Lazily attaches a weight to a node config.
 
-    The factory is called on first access to weight or _to_rust_node().
+    The factory is called on first access to weight or to_rust_node().
     Useful when path or weight is computed at runtime.
 
     Example:
@@ -49,11 +49,11 @@ class LazyWeightedNodeConfig:
         self._factory = None
         self._resolved = True
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Delegate to wrapped child (transparent in Rust tree)."""
         self._resolve()
         assert self._child is not None
-        return self._child._to_rust_node()
+        return self._child.to_rust_node()
 
     def __enter__(self) -> Iterator[Bytes]:
         """Delegate to child."""

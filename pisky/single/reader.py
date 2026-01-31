@@ -108,7 +108,7 @@ class RecordReaderConfig:
             self._reader = None
         return False
 
-    def _to_rust_node(self) -> RustNode:
+    def to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         return self._config
 
