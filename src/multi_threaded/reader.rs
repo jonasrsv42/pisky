@@ -22,16 +22,21 @@ use crate::shard::source::PyFileShards;
 /// Active multi-threaded reader - iterates over records from shards in parallel.
 ///
 /// This is the shared reader type returned by all multi-threaded reader configs.
+/// Uses `&self` for all methods to allow concurrent access from multiple Python threads.
+///
+/// Note: We intentionally don't wrap the reader in `Option` for deterministic cleanup.
+/// Using `Option` would require `&mut self` access for `close()`, which would prevent
+/// concurrent reads from multiple Python threads. To support both concurrent access
+/// AND deterministic cleanup, we'd need a `Mutex`, which adds overhead. Since the
+/// underlying reader uses internal synchronization, we rely on Rust's `Drop` for cleanup.
 #[pyclass(name = "MultiThreadedReader")]
 pub struct PyMultiThreadedReader {
-    reader: Option<MultiThreadedReader<std::fs::File>>,
+    reader: MultiThreadedReader<std::fs::File>,
 }
 
 impl PyMultiThreadedReader {
     pub fn new(reader: MultiThreadedReader<std::fs::File>) -> Self {
-        Self {
-            reader: Some(reader),
-        }
+        Self { reader }
     }
 }
 
@@ -41,15 +46,10 @@ impl PyMultiThreadedReader {
         slf
     }
 
-    fn __next__<'py>(&mut self, py: Python<'py>) -> PyResult<Option<pyo3_bytes::PyBytes>> {
-        let reader = self
-            .reader
-            .as_ref()
-            .ok_or_else(|| PyIOError::new_err("Reader is closed"))?;
-
+    fn __next__<'py>(&self, py: Python<'py>) -> PyResult<Option<pyo3_bytes::PyBytes>> {
         py.allow_threads(|| {
             loop {
-                match reader.read() {
+                match self.reader.read() {
                     Ok(DiskyParallelPiece::Record(bytes)) => {
                         return Ok(Some(pyo3_bytes::PyBytes::new(bytes)));
                     }
@@ -61,14 +61,9 @@ impl PyMultiThreadedReader {
         })
     }
 
-    fn close<'py>(&mut self, py: Python<'py>) -> PyResult<()> {
-        let reader = self
-            .reader
-            .take()
-            .ok_or_else(|| PyIOError::new_err("Reader is already closed"))?;
-
+    fn close<'py>(&self, py: Python<'py>) -> PyResult<()> {
         py.allow_threads(|| {
-            reader
+            self.reader
                 .close()
                 .map_err(|e| PyIOError::new_err(e.to_string()))
         })

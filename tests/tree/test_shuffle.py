@@ -220,5 +220,61 @@ class TestShuffleConfig:
             assert records == expected
 
 
+class TestTreeReaderClose:
+    """Tests for tree reader close behavior."""
+
+    def test_shuffle_close_raises_error_on_subsequent_read(self):
+        """Test that reading after close() raises an error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "data.disky")
+
+            with RecordWriterConfig(path) as writer:
+                for i in range(5):
+                    writer.write(f"r{i}".encode())
+
+            config = ShuffleConfig(
+                RecordReaderConfig(path),
+                buffer_size=10,
+                seed=42,
+            )
+            with config as reader:
+                # Read one record successfully
+                record = next(reader)
+                assert record is not None
+
+                # Close the reader explicitly
+                reader.close()
+
+                # Subsequent read should raise an error
+                with pytest.raises(Exception) as exc_info:
+                    next(reader)
+
+                assert "closed" in str(exc_info.value).lower()
+
+    def test_round_robin_close_raises_error_on_subsequent_read(self):
+        """Test that reading after close() raises an error for round-robin."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "data.disky")
+
+            with RecordWriterConfig(path) as writer:
+                for i in range(5):
+                    writer.write(f"r{i}".encode())
+
+            config = RoundRobinConfig([RecordReaderConfig(path)])
+            with config as reader:
+                # Read one record successfully
+                record = next(reader)
+                assert record is not None
+
+                # Close the reader explicitly
+                reader.close()
+
+                # Subsequent read should raise an error
+                with pytest.raises(Exception) as exc_info:
+                    next(reader)
+
+                assert "closed" in str(exc_info.value).lower()
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

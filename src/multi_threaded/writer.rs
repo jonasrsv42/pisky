@@ -151,20 +151,4 @@ impl PyMultiThreadedWriterInstance {
                 .map_err(|e| PyIOError::new_err(e.to_string()))
         })
     }
-
-    fn pending_tasks<'py>(&self, py: Python<'py>) -> PyResult<usize> {
-        py.allow_threads(|| {
-            self.writer
-                .pending_tasks()
-                .map_err(|e| PyIOError::new_err(e.to_string()))
-        })
-    }
-
-    fn available_writers<'py>(&self, py: Python<'py>) -> PyResult<usize> {
-        py.allow_threads(|| {
-            self.writer
-                .available_writers()
-                .map_err(|e| PyIOError::new_err(e.to_string()))
-        })
-    }
 }

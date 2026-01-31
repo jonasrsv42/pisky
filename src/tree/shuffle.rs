@@ -76,8 +76,8 @@ impl PyShuffleConfig {
 
 impl Node for PyShuffleConfig {
     fn make(self: Box<Self>) -> Result<Reader> {
-        let mut builder = ReservoirShuffleConfig::new(*self.child)
-            .with_buffer_size(self.buffer_size);
+        let mut builder =
+            ReservoirShuffleConfig::new(*self.child).with_buffer_size(self.buffer_size);
 
         if let Some(seed) = self.seed {
             builder = builder.with_seed(seed);
