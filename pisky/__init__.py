@@ -28,8 +28,8 @@ from .logging import set_log_level
 # Import Globable and expand_dirs from expand module
 from .expand import Globable, expand_dirs
 
-# Import Writer protocol
-from .protocol import Writer
+# Import protocols
+from .protocol import Writer, StrPath
 
 try:
     __version__ = importlib.metadata.version("pisky")
@@ -48,6 +48,7 @@ __all__ = [
     # Common
     "CorruptionStrategy",
     "Globable",
+    "StrPath",
     "Writer",
     # Functions
     "set_log_level",

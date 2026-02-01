@@ -1,15 +1,12 @@
 """Single-file record writer with config-based API."""
 
-from os import PathLike
 from pathlib import Path
 from types import TracebackType
-from typing import Any
 
 from .._pisky import RecordWriter as _RecordWriter
 from .._pisky import RecordWriterConfig as _RecordWriterConfig
 from ..compression import Compression, Zstd, Uncompressed
-
-PathType = str | Path | PathLike[Any]
+from ..protocol import StrPath
 
 
 class RecordWriter:
@@ -72,7 +69,7 @@ class RecordWriterConfig:
 
     def __init__(
         self,
-        path: PathType,
+        path: StrPath,
         compression: Compression = Uncompressed(),
     ) -> None:
         self._path = str(path)

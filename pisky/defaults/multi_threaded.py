@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from pisky.compression import Zstd, Uncompressed
+from pisky.protocol import StrPath
 from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards as ReaderFileShards
 from pisky.multi_threaded.reader import count_records as _count_records
@@ -16,7 +17,7 @@ from pisky.multi_threaded.writer import MultiThreadedConfig as WriterConfig
 
 
 def count_shards_parallel(
-    dir_path: str | Path,
+    dir_path: StrPath,
     pattern: str = "shard",
 ) -> int:
     """
@@ -41,7 +42,7 @@ def count_shards_parallel(
 
 @contextmanager
 def read_shards_parallel(
-    dir_path: str | Path,
+    dir_path: StrPath,
     pattern: str = "shard",
     num_parallel: int = 2,
     worker_threads: int | None = None,
@@ -79,8 +80,8 @@ def read_shards_parallel(
                     break
                 process(record)
     """
-    dir_path = Path(dir_path)
-    shards = ReaderFileShards.from_pattern(str(dir_path), pattern)
+    dir_path_str = str(dir_path)
+    shards = ReaderFileShards.from_pattern(dir_path_str, pattern)
 
     if shuffle:
         if seed is None:
@@ -100,7 +101,7 @@ def read_shards_parallel(
 
 @contextmanager
 def write_shards_parallel(
-    dir_path: str | Path,
+    dir_path: StrPath,
     pattern: str = "shard",
     num_shards: int = 2,
     worker_threads: int | None = None,
@@ -132,11 +133,11 @@ def write_shards_parallel(
             for record in records:
                 writer.write(record)
     """
-    dir_path = Path(dir_path)
-    dir_path.mkdir(parents=True, exist_ok=True)
+    dir_path_resolved = Path(str(dir_path))
+    dir_path_resolved.mkdir(parents=True, exist_ok=True)
 
     comp = Zstd(compression) if compression is not None else Uncompressed()
-    shards = WriterFileShards.from_pattern(str(dir_path), pattern, append=append)
+    shards = WriterFileShards.from_pattern(str(dir_path_resolved), pattern, append=append)
 
     with WriterConfig(
         shards,

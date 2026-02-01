@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Iterator
 
 from pisky import RecordReaderConfig
+from pisky.protocol import StrPath
 from pisky.compression import Zstd, Uncompressed
 from pisky.shard.file_shards import FileShards as ReaderFileShards
 from pisky.shard.reader import count_records as _count_records
@@ -14,7 +15,7 @@ from pisky.shard.writer import FileShards, SequentialConfig
 
 
 def count_shards(
-    dir_path: str | Path,
+    dir_path: StrPath,
     pattern: str = "shard",
 ) -> int:
     """
@@ -39,7 +40,7 @@ def count_shards(
 
 @contextmanager
 def read_shards(
-    dir_path: str | Path,
+    dir_path: StrPath,
     pattern: str = "shard",
 ) -> Iterator:
     """
@@ -59,11 +60,11 @@ def read_shards(
             for record in reader:
                 process(record)
     """
-    dir_path = Path(dir_path)
-    shard_files = sorted(dir_path.glob(f"{pattern}_*"))
+    dir_path_resolved = Path(str(dir_path))
+    shard_files = sorted(dir_path_resolved.glob(f"{pattern}_*"))
 
     if not shard_files:
-        raise ValueError(f"No shard files matching '{pattern}_*' found in {dir_path}")
+        raise ValueError(f"No shard files matching '{pattern}_*' found in {dir_path_resolved}")
 
     def iterate_shards():
         for shard_file in shard_files:
@@ -75,7 +76,7 @@ def read_shards(
 
 @contextmanager
 def write_shards(
-    dir_path: str | Path,
+    dir_path: StrPath,
     pattern: str = "shard",
     max_shard_bytes: int | None = None,
     compression: int | None = 3,
@@ -103,11 +104,11 @@ def write_shards(
             for record in records:
                 writer.write(record)
     """
-    dir_path = Path(dir_path)
-    dir_path.mkdir(parents=True, exist_ok=True)
+    dir_path_resolved = Path(str(dir_path))
+    dir_path_resolved.mkdir(parents=True, exist_ok=True)
 
     comp = Zstd(compression) if compression is not None else Uncompressed()
-    shards = FileShards.from_pattern(str(dir_path), pattern, append=append)
+    shards = FileShards.from_pattern(str(dir_path_resolved), pattern, append=append)
 
     with SequentialConfig(shards, compression=comp, max_shard_bytes=max_shard_bytes) as writer:
         yield writer

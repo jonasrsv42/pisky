@@ -1,9 +1,7 @@
 """Single-file record reader with config-based API."""
 
-from os import PathLike
 from pathlib import Path
 from types import TracebackType
-from typing import Any
 
 from collections.abc import Sequence
 
@@ -11,10 +9,9 @@ from .._pisky import RecordReader as _RecordReader
 from .._pisky import RecordReaderConfig as _RecordReaderConfig
 from ..bytes import Bytes
 from ..corruption import CorruptionStrategy
+from ..protocol import StrPath
 from ..tree.named.named_node import NamedNode
 from ..tree.node import RustNode
-
-PathType = str | Path | PathLike[Any]
 
 
 class RecordReader:
@@ -84,7 +81,7 @@ class RecordReaderConfig:
 
     def __init__(
         self,
-        path: PathType,
+        path: StrPath,
         corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
     ) -> None:
         self._path = str(path)
@@ -134,7 +131,7 @@ class RecordReaderConfig:
 
     @staticmethod
     def count_records(
-        path: PathType,
+        path: StrPath,
         corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
     ) -> int:
         """

@@ -1,13 +1,9 @@
 """Corruption handling strategies for the Pisky library."""
 
-from typing import Any
-from pathlib import Path
-from os import PathLike
-
 from ._pisky import PyCorruptionStrategy
 
-# Define a type for path-like objects
-PathType = str | Path | PathLike[Any]
+# Re-export StrPath as PathType for backwards compatibility
+from .protocol import StrPath as PathType
 
 
 class CorruptionStrategy:

@@ -1,6 +1,9 @@
 """File-based shard source."""
 
+from typing import Sequence
+
 from pisky._pisky import ReaderFileShards as _FileShards
+from pisky.protocol import StrPath
 
 
 class FileShards:
@@ -17,16 +20,16 @@ class FileShards:
         self._inner = inner
 
     @staticmethod
-    def from_paths(paths: list[str]) -> "FileShards":
+    def from_paths(paths: Sequence[StrPath]) -> "FileShards":
         """Create from an explicit list of file paths."""
-        return FileShards(_FileShards.from_paths(paths))
+        return FileShards(_FileShards.from_paths([str(p) for p in paths]))
 
     @staticmethod
-    def from_prefix(prefix: str) -> "FileShards":
+    def from_prefix(prefix: StrPath) -> "FileShards":
         """Create by matching all files starting with the given path prefix."""
-        return FileShards(_FileShards.from_prefix(prefix))
+        return FileShards(_FileShards.from_prefix(str(prefix)))
 
     @staticmethod
-    def from_pattern(dir: str, prefix: str) -> "FileShards":
+    def from_pattern(dir: StrPath, prefix: str) -> "FileShards":
         """Create by discovering files with the given prefix in a directory."""
-        return FileShards(_FileShards.from_pattern(dir, prefix))
+        return FileShards(_FileShards.from_pattern(str(dir), prefix))

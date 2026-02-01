@@ -8,6 +8,7 @@ from pisky._pisky import (
     SequentialWriter as _SeqWriter,
 )
 from pisky.compression import Compression, Zstd, Uncompressed
+from pisky.protocol import StrPath
 
 
 class FileShards:
@@ -26,14 +27,14 @@ class FileShards:
         self._inner = inner
 
     @staticmethod
-    def from_pattern(dir: str, prefix: str, append: bool = False) -> "FileShards":
+    def from_pattern(dir: StrPath, prefix: str, append: bool = False) -> "FileShards":
         """Create by specifying directory and prefix separately."""
-        return FileShards(_FileShards.from_pattern(dir, prefix, append))
+        return FileShards(_FileShards.from_pattern(str(dir), prefix, append))
 
     @staticmethod
-    def from_prefix(prefix: str, append: bool = False) -> "FileShards":
+    def from_prefix(prefix: StrPath, append: bool = False) -> "FileShards":
         """Create from a path prefix (e.g., '/data/shard' -> dir='/data', prefix='shard')."""
-        return FileShards(_FileShards.from_prefix(prefix, append))
+        return FileShards(_FileShards.from_prefix(str(prefix), append))
 
 
 class SequentialWriter:

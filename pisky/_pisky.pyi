@@ -2,13 +2,9 @@
 
 from types import TracebackType
 from typing import Any, Iterator
-from pathlib import Path
-from os import PathLike
 
 from .bytes import Bytes
-
-# Type alias for path-like objects
-PathType = str | Path | PathLike[Any]
+from .protocol import StrPath
 
 
 # =============================================================================
@@ -73,7 +69,7 @@ class RecordWriterConfig:
 
     def __init__(
         self,
-        path: PathType,
+        path: StrPath,
         compression: Zstd | Uncompressed | None = None,
     ) -> None:
         """
@@ -107,7 +103,7 @@ class RecordReaderConfig:
 
     def __init__(
         self,
-        path: PathType,
+        path: StrPath,
         corruption_strategy: PyCorruptionStrategy | None = None,
     ) -> None:
         """
