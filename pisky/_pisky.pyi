@@ -335,6 +335,7 @@ class MultiThreadedReaderSequentialOrderConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 class MultiThreadedReaderRandomOrderConfig:
@@ -347,6 +348,7 @@ class MultiThreadedReaderRandomOrderConfig:
         worker_threads: int | None = None,
         queue_size_mb: int | None = None,
         corruption_strategy: PyCorruptionStrategy | None = None,
+        seed: int | None = None,
     ) -> None: ...
 
     def __enter__(self) -> MultiThreadedReader: ...
@@ -356,6 +358,7 @@ class MultiThreadedReaderRandomOrderConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 # =============================================================================

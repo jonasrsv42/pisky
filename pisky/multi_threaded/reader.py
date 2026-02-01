@@ -1,5 +1,6 @@
 """Multi-threaded shard readers."""
 
+from collections.abc import Sequence
 from types import TracebackType
 
 from pisky._pisky import MultiThreadedReaderRandomOrderConfig as _MTRandConfig
@@ -8,6 +9,7 @@ from pisky._pisky import MultiThreadedReader
 from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards
 from pisky.shard.order import RandomRepeat, Sequential
+from pisky.tree.named.named_node import NamedNode
 from pisky.tree.node import RustNode
 
 # Re-export FileShards
@@ -72,12 +74,13 @@ class MultiThreadedConfig:
         self._config: RustNode | None = None
         self._reader: MultiThreadedReader | None = None
 
-    def __enter__(self) -> MultiThreadedReader:
+    def _make_rust_config(self) -> RustNode:
+        """Create the Rust config object based on order type."""
         shards = self._order._shards._inner
         py_strategy = self._corruption_strategy._to_py()
         match self._order:
             case Sequential():
-                self._config = _MTSeqConfig(
+                return _MTSeqConfig(
                     shards,
                     self._num_parallel,
                     self._worker_threads,
@@ -85,7 +88,7 @@ class MultiThreadedConfig:
                     py_strategy,
                 )
             case RandomRepeat():
-                self._config = _MTRandConfig(
+                return _MTRandConfig(
                     shards,
                     self._num_parallel,
                     self._worker_threads,
@@ -95,6 +98,9 @@ class MultiThreadedConfig:
                 )
             case _:
                 raise TypeError(f"Unknown order type: {type(self._order)}")
+
+    def __enter__(self) -> MultiThreadedReader:
+        self._config = self._make_rust_config()
         self._reader = self._config.__enter__()
         return self._reader
 
@@ -109,3 +115,35 @@ class MultiThreadedConfig:
         self._reader = None
         self._config = None
         return False
+
+    def _to_rust_node(self) -> RustNode:
+        """Convert this config to its Rust equivalent for tree composition."""
+        return self._make_rust_config()
+
+    def serialize(self) -> bytes:
+        """Serialize this config to bytes for cross-library transfer."""
+        return self._to_rust_node().serialize_as_bytes()
+
+    @property
+    def weight(self) -> float | None:
+        """Leaf node - no weight."""
+        return None
+
+    def named_children(self) -> Sequence[NamedNode]:
+        """Return this node as a leaf."""
+        metadata = {
+            "order": self._order.__class__.__name__,
+            "num_parallel": self._num_parallel,
+        }
+        if self._worker_threads is not None:
+            metadata["worker_threads"] = self._worker_threads
+        if self._queue_size_mb is not None:
+            metadata["queue_size_mb"] = self._queue_size_mb
+        return [
+            NamedNode(
+                name=self.__class__.__name__,
+                weight=self.weight,
+                children=[],
+                metadata=metadata,
+            )
+        ]
