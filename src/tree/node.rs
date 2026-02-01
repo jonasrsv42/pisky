@@ -7,6 +7,9 @@ use pyo3::prelude::*;
 use disky::error::Result;
 use disky::tree::reader::{Node, Reader};
 
+use crate::multi_threaded::{
+    PyMultiThreadedReaderRandOrderConfig, PyMultiThreadedReaderSeqOrderConfig,
+};
 use crate::shard::{
     PyRRReaderRandOrderConfig, PyRRReaderSeqOrderConfig, PySeqReaderRandOrderConfig,
     PySeqReaderSeqOrderConfig,
@@ -42,6 +45,9 @@ pub enum PyNodeEnum {
     SeqReaderRandOrderConfig(PySeqReaderRandOrderConfig),
     RRReaderSeqOrderConfig(PyRRReaderSeqOrderConfig),
     RRReaderRandOrderConfig(PyRRReaderRandOrderConfig),
+    // Multi-threaded readers (2 variants: sequential vs random order)
+    MTReaderSeqOrderConfig(PyMultiThreadedReaderSeqOrderConfig),
+    MTReaderRandOrderConfig(PyMultiThreadedReaderRandOrderConfig),
 }
 
 // From implementations for wrapping configs in the enum for serialization
@@ -99,6 +105,18 @@ impl From<PyRRReaderRandOrderConfig> for PyNodeEnum {
     }
 }
 
+impl From<PyMultiThreadedReaderSeqOrderConfig> for PyNodeEnum {
+    fn from(c: PyMultiThreadedReaderSeqOrderConfig) -> Self {
+        Self::MTReaderSeqOrderConfig(c)
+    }
+}
+
+impl From<PyMultiThreadedReaderRandOrderConfig> for PyNodeEnum {
+    fn from(c: PyMultiThreadedReaderRandOrderConfig) -> Self {
+        Self::MTReaderRandOrderConfig(c)
+    }
+}
+
 impl Node for PyNodeEnum {
     fn make(self: Box<Self>) -> Result<Reader> {
         match *self {
@@ -111,6 +129,8 @@ impl Node for PyNodeEnum {
             Self::SeqReaderRandOrderConfig(c) => Box::new(c).make(),
             Self::RRReaderSeqOrderConfig(c) => Box::new(c).make(),
             Self::RRReaderRandOrderConfig(c) => Box::new(c).make(),
+            Self::MTReaderSeqOrderConfig(c) => Box::new(c).make(),
+            Self::MTReaderRandOrderConfig(c) => Box::new(c).make(),
         }
     }
 }
