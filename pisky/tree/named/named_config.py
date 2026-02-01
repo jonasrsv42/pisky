@@ -43,9 +43,13 @@ class NamedNodeConfig:
         """The name attached to this node."""
         return self._name
 
-    def to_rust_node(self) -> RustNode:
+    def _to_rust_node(self) -> RustNode:
         """Delegate to wrapped child (transparent in Rust tree)."""
-        return self._child.to_rust_node()
+        return self._child._to_rust_node()
+
+    def serialize(self) -> bytes:
+        """Serialize this config to bytes for cross-library transfer."""
+        return self._to_rust_node().serialize_as_bytes()
 
     def __enter__(self) -> Iterator[Bytes]:
         """Delegate to child."""

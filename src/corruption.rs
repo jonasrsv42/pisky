@@ -1,21 +1,29 @@
+use nanoserde::{DeJson, SerJson};
 use pyo3::prelude::*;
 
 use disky::reader::CorruptionStrategy;
 
 /// Enum for corruption handling strategies.
 #[pyclass]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SerJson, DeJson)]
 pub enum PyCorruptionStrategy {
     Error,
     Recover,
 }
 
-/// Convert PyCorruptionStrategy to disky's CorruptionStrategy.
+impl PyCorruptionStrategy {
+    /// Convert to disky's CorruptionStrategy.
+    pub fn to_disky(self) -> CorruptionStrategy {
+        match self {
+            PyCorruptionStrategy::Recover => CorruptionStrategy::Recover,
+            PyCorruptionStrategy::Error => CorruptionStrategy::Error,
+        }
+    }
+}
+
+/// Convert Option<PyCorruptionStrategy> to Option<CorruptionStrategy>.
 pub fn convert_corruption_strategy(
     strategy: Option<PyCorruptionStrategy>,
 ) -> Option<CorruptionStrategy> {
-    match strategy {
-        Some(PyCorruptionStrategy::Recover) => Some(CorruptionStrategy::Recover),
-        Some(PyCorruptionStrategy::Error) | None => None,
-    }
+    strategy.map(|s| s.to_disky())
 }

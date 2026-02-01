@@ -35,7 +35,8 @@ class NodeConfig(Protocol):
     """Protocol for configs that can be used as tree nodes.
 
     All nodes implement:
-    - to_rust_node(): Build Rust tree for execution
+    - _to_rust_node(): Build Rust node (internal)
+    - serialize(): Serialize config to bytes for cross-library transfer
     - weight: Subtree weight (None if unweighted path)
 
     Weight rules:
@@ -46,11 +47,17 @@ class NodeConfig(Protocol):
     - Leaf nodes without weight return None
     """
 
-    def to_rust_node(self) -> RustNode:
+    def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition.
 
-        This is the public API for passing tree configs to other libraries
-        (e.g., smarts) that need to build the tree in Rust.
+        Internal method - use serialize() for cross-library transfer.
+        """
+        ...
+
+    def serialize(self) -> bytes:
+        """Serialize this config to bytes for cross-library transfer.
+
+        Use tree_from_bytes() to deserialize and build a reader.
         """
         ...
 

@@ -1,16 +1,16 @@
+use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 use std::fs::File;
-use std::path::PathBuf;
 
 use disky::error::Result as DiskyResult;
 use disky::reader::{
-    CorruptionStrategy, DiskyPiece, RecordReader, RecordReaderConfig as RustReaderConfig,
-    RecordReaderOptions,
+    DiskyPiece, RecordReader, RecordReaderConfig as RustReaderConfig, RecordReaderOptions,
 };
 use disky::tree::reader::{Node, Reader};
 
 use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
+use crate::tree::node::PyNodeEnum;
 
 /// Configuration for a single-file record reader.
 ///
@@ -22,10 +22,10 @@ use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
 ///         for record in reader:
 ///             process(record)
 #[pyclass(name = "RecordReaderConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PyRecordReaderConfig {
-    path: PathBuf,
-    corruption_strategy: Option<CorruptionStrategy>,
+    pub path: String,
+    pub corruption_strategy: Option<PyCorruptionStrategy>,
 }
 
 #[pymethods]
@@ -34,8 +34,8 @@ impl PyRecordReaderConfig {
     #[pyo3(signature = (path, corruption_strategy=None))]
     fn new(path: &str, corruption_strategy: Option<PyCorruptionStrategy>) -> Self {
         Self {
-            path: PathBuf::from(path),
-            corruption_strategy: convert_corruption_strategy(corruption_strategy),
+            path: path.to_string(),
+            corruption_strategy,
         }
     }
 
@@ -54,6 +54,11 @@ impl PyRecordReaderConfig {
         // Reader cleanup happens via PyRecordReader's drop
         Ok(false)
     }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
+    }
 }
 
 /// Active record reader - created by entering a RecordReaderConfig context.
@@ -67,11 +72,11 @@ pub struct PyRecordReader {
 impl PyRecordReader {
     fn from_config(config: &PyRecordReaderConfig) -> PyResult<Self> {
         let file = File::open(&config.path)
-            .map_err(|e| PyIOError::new_err(format!("{}: {}", config.path.display(), e)))?;
+            .map_err(|e| PyIOError::new_err(format!("{}: {}", config.path, e)))?;
 
         let mut builder = RustReaderConfig::new(file);
 
-        if let Some(strategy) = config.corruption_strategy {
+        if let Some(strategy) = convert_corruption_strategy(config.corruption_strategy) {
             let options = RecordReaderOptions::default().with_corruption_strategy(strategy);
             builder = builder.options(options);
         }
@@ -123,7 +128,7 @@ impl Node for PyRecordReaderConfig {
 
         let mut builder = RustReaderConfig::new(file);
 
-        if let Some(strategy) = self.corruption_strategy {
+        if let Some(strategy) = convert_corruption_strategy(self.corruption_strategy) {
             let options = RecordReaderOptions::default().with_corruption_strategy(strategy);
             builder = builder.options(options);
         }

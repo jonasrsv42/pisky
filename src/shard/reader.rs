@@ -6,15 +6,17 @@
 //! - RoundRobinReader + SequentialOrder: interleaves shards in order
 //! - RoundRobinReader + RandomOrder: interleaves shards in shuffled order (infinite)
 
+use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 
-use disky::reader::{CorruptionStrategy, RecordReaderOptions};
+use disky::reader::RecordReaderOptions;
 use disky::shard::reader::{RoundRobinShardReaderConfig, SequentialShardReaderConfig};
 use disky::shard::source::{RandomRepeatingShardSource, SequentialShardSource};
 use disky::tree::reader::{Node, Reader};
 
 use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
+use crate::tree::node::PyNodeEnum;
 
 use super::source::PyFileShards;
 
@@ -71,10 +73,10 @@ impl PyShardReader {
 ///
 /// Drains each shard completely before moving to the next, in order.
 #[pyclass(name = "SequentialReaderSequentialOrderConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PySeqReaderSeqOrderConfig {
-    shards: PyFileShards,
-    corruption_strategy: Option<CorruptionStrategy>,
+    pub shards: PyFileShards,
+    pub corruption_strategy: Option<PyCorruptionStrategy>,
 }
 
 #[pymethods]
@@ -84,7 +86,7 @@ impl PySeqReaderSeqOrderConfig {
     fn new(shards: PyFileShards, corruption_strategy: Option<PyCorruptionStrategy>) -> Self {
         Self {
             shards,
-            corruption_strategy: convert_corruption_strategy(corruption_strategy),
+            corruption_strategy,
         }
     }
 
@@ -94,7 +96,7 @@ impl PySeqReaderSeqOrderConfig {
         let source = SequentialShardSource::new(file_shards);
 
         let mut builder = SequentialShardReaderConfig::new(source);
-        if let Some(s) = config.corruption_strategy {
+        if let Some(s) = convert_corruption_strategy(config.corruption_strategy) {
             builder =
                 builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
         }
@@ -113,6 +115,11 @@ impl PySeqReaderSeqOrderConfig {
     ) -> bool {
         false
     }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
+    }
 }
 
 impl Node for PySeqReaderSeqOrderConfig {
@@ -121,7 +128,7 @@ impl Node for PySeqReaderSeqOrderConfig {
         let source = SequentialShardSource::new(file_shards);
 
         let mut builder = SequentialShardReaderConfig::new(source);
-        if let Some(s) = self.corruption_strategy {
+        if let Some(s) = convert_corruption_strategy(self.corruption_strategy) {
             builder =
                 builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
         }
@@ -135,10 +142,10 @@ impl Node for PySeqReaderSeqOrderConfig {
 /// Drains each shard completely before moving to the next, in shuffled order.
 /// Repeats infinitely.
 #[pyclass(name = "SequentialReaderRandomOrderConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PySeqReaderRandOrderConfig {
     pub shards: PyFileShards,
-    pub corruption_strategy: Option<CorruptionStrategy>,
+    pub corruption_strategy: Option<PyCorruptionStrategy>,
     pub seed: Option<u64>,
 }
 
@@ -153,7 +160,7 @@ impl PySeqReaderRandOrderConfig {
     ) -> Self {
         Self {
             shards,
-            corruption_strategy: convert_corruption_strategy(corruption_strategy),
+            corruption_strategy,
             seed,
         }
     }
@@ -167,7 +174,7 @@ impl PySeqReaderRandOrderConfig {
         };
 
         let mut builder = SequentialShardReaderConfig::new(source);
-        if let Some(s) = config.corruption_strategy {
+        if let Some(s) = convert_corruption_strategy(config.corruption_strategy) {
             builder =
                 builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
         }
@@ -186,6 +193,11 @@ impl PySeqReaderRandOrderConfig {
     ) -> bool {
         false
     }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
+    }
 }
 
 impl Node for PySeqReaderRandOrderConfig {
@@ -197,7 +209,7 @@ impl Node for PySeqReaderRandOrderConfig {
         };
 
         let mut builder = SequentialShardReaderConfig::new(source);
-        if let Some(s) = self.corruption_strategy {
+        if let Some(s) = convert_corruption_strategy(self.corruption_strategy) {
             builder =
                 builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
         }
@@ -214,11 +226,11 @@ impl Node for PySeqReaderRandOrderConfig {
 ///
 /// Reads one record from each shard in rotation, in order.
 #[pyclass(name = "RoundRobinReaderSequentialOrderConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PyRRReaderSeqOrderConfig {
-    shards: PyFileShards,
-    corruption_strategy: Option<CorruptionStrategy>,
-    max_active: Option<usize>,
+    pub shards: PyFileShards,
+    pub corruption_strategy: Option<PyCorruptionStrategy>,
+    pub max_active: Option<usize>,
 }
 
 #[pymethods]
@@ -232,7 +244,7 @@ impl PyRRReaderSeqOrderConfig {
     ) -> Self {
         Self {
             shards,
-            corruption_strategy: convert_corruption_strategy(corruption_strategy),
+            corruption_strategy,
             max_active,
         }
     }
@@ -243,7 +255,7 @@ impl PyRRReaderSeqOrderConfig {
         let source = SequentialShardSource::new(file_shards);
 
         let mut builder = RoundRobinShardReaderConfig::new(source);
-        if let Some(s) = config.corruption_strategy {
+        if let Some(s) = convert_corruption_strategy(config.corruption_strategy) {
             builder =
                 builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
         }
@@ -265,6 +277,11 @@ impl PyRRReaderSeqOrderConfig {
     ) -> bool {
         false
     }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
+    }
 }
 
 impl Node for PyRRReaderSeqOrderConfig {
@@ -273,7 +290,7 @@ impl Node for PyRRReaderSeqOrderConfig {
         let source = SequentialShardSource::new(file_shards);
 
         let mut builder = RoundRobinShardReaderConfig::new(source);
-        if let Some(s) = self.corruption_strategy {
+        if let Some(s) = convert_corruption_strategy(self.corruption_strategy) {
             builder =
                 builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
         }
@@ -290,12 +307,12 @@ impl Node for PyRRReaderSeqOrderConfig {
 /// Reads one record from each shard in rotation, in shuffled order.
 /// Repeats infinitely.
 #[pyclass(name = "RoundRobinReaderRandomOrderConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PyRRReaderRandOrderConfig {
-    shards: PyFileShards,
-    corruption_strategy: Option<CorruptionStrategy>,
-    max_active: Option<usize>,
-    seed: Option<u64>,
+    pub shards: PyFileShards,
+    pub corruption_strategy: Option<PyCorruptionStrategy>,
+    pub max_active: Option<usize>,
+    pub seed: Option<u64>,
 }
 
 #[pymethods]
@@ -310,7 +327,7 @@ impl PyRRReaderRandOrderConfig {
     ) -> Self {
         Self {
             shards,
-            corruption_strategy: convert_corruption_strategy(corruption_strategy),
+            corruption_strategy,
             max_active,
             seed,
         }
@@ -325,7 +342,7 @@ impl PyRRReaderRandOrderConfig {
         };
 
         let mut builder = RoundRobinShardReaderConfig::new(source);
-        if let Some(s) = config.corruption_strategy {
+        if let Some(s) = convert_corruption_strategy(config.corruption_strategy) {
             builder =
                 builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
         }
@@ -347,6 +364,11 @@ impl PyRRReaderRandOrderConfig {
     ) -> bool {
         false
     }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
+    }
 }
 
 impl Node for PyRRReaderRandOrderConfig {
@@ -358,7 +380,7 @@ impl Node for PyRRReaderRandOrderConfig {
         };
 
         let mut builder = RoundRobinShardReaderConfig::new(source);
-        if let Some(s) = self.corruption_strategy {
+        if let Some(s) = convert_corruption_strategy(self.corruption_strategy) {
             builder =
                 builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
         }

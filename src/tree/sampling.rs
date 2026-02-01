@@ -1,5 +1,6 @@
 //! Sampling reader for weighted random sampling from multiple sources.
 
+use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
 
@@ -7,7 +8,8 @@ use disky::error::Result;
 use disky::tree::reader::{Node, Reader};
 use disky::tree::sampling::SamplingReaderConfig;
 
-use super::node::{PyNodeEnum, PyTreeReader};
+use super::node::PyNodeEnum;
+use super::node::PyTreeReader;
 
 /// Configuration for sampling from multiple weighted sources.
 ///
@@ -26,7 +28,7 @@ use super::node::{PyNodeEnum, PyTreeReader};
 ///         for record in reader:
 ///             # Records sampled proportionally from sources
 #[pyclass(name = "SamplingConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PySamplingConfig {
     pub sources: Vec<(Box<PyNodeEnum>, f64)>,
     pub seed: Option<u64>,
@@ -78,6 +80,11 @@ impl PySamplingConfig {
         _traceback: Option<Bound<'_, PyAny>>,
     ) -> PyResult<bool> {
         Ok(false)
+    }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
     }
 }
 

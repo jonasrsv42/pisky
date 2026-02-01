@@ -25,7 +25,10 @@ use shard::{
     PySequentialWriterConfig, PyShardReader, PyWriterFileShards,
 };
 use single::{PyRecordReader, PyRecordReaderConfig, PyRecordWriter, PyRecordWriterConfig};
-use tree::{PyRoundRobinConfig, PySamplingConfig, PyShuffleConfig, PyThreadedConfig, PyTreeReader};
+use tree::{
+    PyRoundRobinConfig, PySamplingConfig, PyShuffleConfig, PyThreadedConfig, PyTreeReader,
+    tree_from_bytes,
+};
 
 // Legacy types
 use corruption::PyCorruptionStrategy;
@@ -79,6 +82,7 @@ fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Add functions to the module
     m.add_function(wrap_pyfunction!(set_log_level, m)?)?;
+    m.add_function(wrap_pyfunction!(tree_from_bytes, m)?)?;
 
     Ok(())
 }

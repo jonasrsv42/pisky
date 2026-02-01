@@ -1,5 +1,6 @@
 //! Threaded node for offloading subtrees to dedicated threads.
 
+use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 
@@ -7,7 +8,8 @@ use disky::error::Result;
 use disky::parallel::node::ThreadedNodeConfig;
 use disky::tree::reader::{Node, Reader};
 
-use super::node::{PyNodeEnum, PyTreeReader};
+use super::node::PyNodeEnum;
+use super::node::PyTreeReader;
 
 /// Configuration for running a child node on a dedicated thread.
 ///
@@ -24,10 +26,10 @@ use super::node::{PyNodeEnum, PyTreeReader};
 ///         for record in reader:
 ///             # Records are prefetched on a separate thread
 #[pyclass(name = "ThreadedConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PyThreadedConfig {
-    child: Box<PyNodeEnum>,
-    buffer_size: usize,
+    pub child: Box<PyNodeEnum>,
+    pub buffer_size: usize,
 }
 
 #[pymethods]
@@ -66,6 +68,11 @@ impl PyThreadedConfig {
         _traceback: Option<Bound<'_, PyAny>>,
     ) -> PyResult<bool> {
         Ok(false)
+    }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
     }
 }
 

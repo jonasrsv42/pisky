@@ -127,6 +127,9 @@ class RecordReaderConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes:
+        """Serialize this config to bytes for cross-library transfer."""
+        ...
 
 
 class RecordReader(Iterator[Bytes]):
@@ -198,6 +201,7 @@ class SequentialReaderSequentialOrderConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 class SequentialReaderRandomOrderConfig:
@@ -216,6 +220,7 @@ class SequentialReaderRandomOrderConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 class RoundRobinReaderSequentialOrderConfig:
@@ -235,6 +240,7 @@ class RoundRobinReaderSequentialOrderConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 class RoundRobinReaderRandomOrderConfig:
@@ -254,6 +260,7 @@ class RoundRobinReaderRandomOrderConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 # =============================================================================
@@ -405,6 +412,7 @@ class RoundRobinConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 class ShuffleConfig:
@@ -423,6 +431,7 @@ class ShuffleConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 class ThreadedConfig:
@@ -440,6 +449,7 @@ class ThreadedConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 class SamplingConfig:
@@ -457,6 +467,7 @@ class SamplingConfig:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool: ...
+    def serialize_as_bytes(self) -> bytes: ...
 
 
 class TreeReader(Iterator[Bytes]):
@@ -468,3 +479,19 @@ class TreeReader(Iterator[Bytes]):
 
     def __iter__(self) -> "TreeReader": ...
     def __next__(self) -> Bytes | None: ...
+
+
+def tree_from_bytes(serialized_config: bytes) -> TreeReader:
+    """
+    Deserialize a tree config from bytes and build a reader.
+
+    Args:
+        serialized_config: Bytes from a config's serialize_as_bytes() method.
+
+    Returns:
+        A TreeReader for iterating over records.
+
+    Raises:
+        ValueError: If the serialized config is invalid.
+    """
+    ...

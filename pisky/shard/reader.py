@@ -91,9 +91,13 @@ class SequentialConfig:
         self._config = None
         return False
 
-    def to_rust_node(self) -> RustNode:
+    def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         return self._make_rust_config()
+
+    def serialize(self) -> bytes:
+        """Serialize this config to bytes for cross-library transfer."""
+        return self._to_rust_node().serialize_as_bytes()
 
     @property
     def weight(self) -> float | None:
@@ -176,9 +180,13 @@ class RoundRobinConfig:
         self._config = None
         return False
 
-    def to_rust_node(self) -> RustNode:
+    def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         return self._make_rust_config()
+
+    def serialize(self) -> bytes:
+        """Serialize this config to bytes for cross-library transfer."""
+        return self._to_rust_node().serialize_as_bytes()
 
     @property
     def weight(self) -> float | None:

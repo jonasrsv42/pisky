@@ -1,12 +1,14 @@
 //! Round-robin interleaving of multiple reader nodes.
 
+use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 
 use disky::error::Result;
 use disky::tree::reader::{Node, Reader, RoundRobinNode};
 
-use super::node::{PyNodeEnum, PyTreeReader};
+use super::node::PyNodeEnum;
+use super::node::PyTreeReader;
 
 /// Configuration for interleaving records from multiple sources in round-robin order.
 ///
@@ -19,9 +21,9 @@ use super::node::{PyNodeEnum, PyTreeReader};
 ///         for record in reader:
 ///             # Records arrive interleaved: a0, b0, a1, b1, ...
 #[pyclass(name = "RoundRobinConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PyRoundRobinConfig {
-    children: Vec<PyNodeEnum>,
+    pub children: Vec<PyNodeEnum>,
 }
 
 #[pymethods]
@@ -56,6 +58,11 @@ impl PyRoundRobinConfig {
         _traceback: Option<Bound<'_, PyAny>>,
     ) -> PyResult<bool> {
         Ok(false)
+    }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
     }
 }
 

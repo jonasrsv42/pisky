@@ -72,7 +72,7 @@ class SamplingConfig:
 
     def __enter__(self) -> TreeReader:
         rust_sources = [
-            (child.to_rust_node(), weight) for child, weight in self._sources
+            (child._to_rust_node(), weight) for child, weight in self._sources
         ]
         rust_config = _SamplingConfig(rust_sources, self._seed)
         inner = rust_config.__enter__()
@@ -90,12 +90,16 @@ class SamplingConfig:
             self._reader = None
         return False
 
-    def to_rust_node(self) -> RustNode:
+    def _to_rust_node(self) -> RustNode:
         """Convert this config to its Rust equivalent for tree composition."""
         rust_sources = [
-            (child.to_rust_node(), weight) for child, weight in self._sources
+            (child._to_rust_node(), weight) for child, weight in self._sources
         ]
         return _SamplingConfig(rust_sources, self._seed)
+
+    def serialize(self) -> bytes:
+        """Serialize this config to bytes for cross-library transfer."""
+        return self._to_rust_node().serialize_as_bytes()
 
     @property
     def weight(self) -> float | None:

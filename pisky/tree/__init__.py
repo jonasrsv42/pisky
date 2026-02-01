@@ -8,11 +8,13 @@ from pisky.tree.auto_sampling import AutoSamplingConfig
 from pisky.tree.lazy_weighted_node import LazyWeightedNodeConfig
 from pisky.tree.named import NamedNode, NamedNodeConfig, named_tree, terse_tree
 from pisky.tree.node import NodeConfig, RustNode
-from pisky.tree.round_robin import RoundRobinConfig
+from pisky.tree.round_robin import RoundRobinConfig, TreeReader
 from pisky.tree.sampling import SamplingConfig
+from pisky.tree.serialized_tree import SerializedTreeReader, tree_from_bytes
 from pisky.tree.shuffle import ShuffleConfig
 from pisky.tree.threaded import ThreadedConfig
 from pisky.tree.weighted_node import WeightedNodeConfig
+
 
 __all__ = [
     "AutoSamplingConfig",
@@ -23,9 +25,11 @@ __all__ = [
     "RoundRobinConfig",
     "RustNode",
     "SamplingConfig",
+    "SerializedTreeReader",
     "ShuffleConfig",
     "ThreadedConfig",
     "WeightedNodeConfig",
     "named_tree",
     "terse_tree",
+    "tree_from_bytes",
 ]

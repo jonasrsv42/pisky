@@ -1,6 +1,7 @@
 //! Node enum and tree reader for Python bindings.
 
-use pyo3::exceptions::PyIOError;
+use nanoserde::{DeJson, SerJson};
+use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
 
 use disky::error::Result;
@@ -18,7 +19,18 @@ use super::{PyRoundRobinConfig, PySamplingConfig, PyShuffleConfig, PyThreadedCon
 ///
 /// PyO3's `FromPyObject` derive will automatically try each variant
 /// when extracting from a Python object.
-#[derive(Clone, FromPyObject)]
+///
+/// # Serialization (internal)
+///
+/// Currently uses JSON via nanoserde for cross-library transfer (e.g., pisky -> smarts).
+/// JSON works for this flat enum structure, but the format is intentionally hidden
+/// behind `serialize_as_bytes`/`node_from_bytes` to allow changing it later.
+///
+/// For any future 1.0 version, we should revisit the serialization format to handle:
+/// - Namespacing (if we have nested enums or types from different modules)
+/// - Versioning (for backwards compatibility)
+/// - Binary formats (for efficiency)
+#[derive(Clone, FromPyObject, SerJson, DeJson)]
 pub enum PyNodeEnum {
     RecordReaderConfig(PyRecordReaderConfig),
     RoundRobinConfig(PyRoundRobinConfig),
@@ -30,6 +42,61 @@ pub enum PyNodeEnum {
     SeqReaderRandOrderConfig(PySeqReaderRandOrderConfig),
     RRReaderSeqOrderConfig(PyRRReaderSeqOrderConfig),
     RRReaderRandOrderConfig(PyRRReaderRandOrderConfig),
+}
+
+// From implementations for wrapping configs in the enum for serialization
+impl From<PyRecordReaderConfig> for PyNodeEnum {
+    fn from(c: PyRecordReaderConfig) -> Self {
+        Self::RecordReaderConfig(c)
+    }
+}
+
+impl From<PyRoundRobinConfig> for PyNodeEnum {
+    fn from(c: PyRoundRobinConfig) -> Self {
+        Self::RoundRobinConfig(c)
+    }
+}
+
+impl From<PySamplingConfig> for PyNodeEnum {
+    fn from(c: PySamplingConfig) -> Self {
+        Self::SamplingConfig(c)
+    }
+}
+
+impl From<PyShuffleConfig> for PyNodeEnum {
+    fn from(c: PyShuffleConfig) -> Self {
+        Self::ShuffleConfig(c)
+    }
+}
+
+impl From<PyThreadedConfig> for PyNodeEnum {
+    fn from(c: PyThreadedConfig) -> Self {
+        Self::ThreadedConfig(c)
+    }
+}
+
+impl From<PySeqReaderSeqOrderConfig> for PyNodeEnum {
+    fn from(c: PySeqReaderSeqOrderConfig) -> Self {
+        Self::SeqReaderSeqOrderConfig(c)
+    }
+}
+
+impl From<PySeqReaderRandOrderConfig> for PyNodeEnum {
+    fn from(c: PySeqReaderRandOrderConfig) -> Self {
+        Self::SeqReaderRandOrderConfig(c)
+    }
+}
+
+impl From<PyRRReaderSeqOrderConfig> for PyNodeEnum {
+    fn from(c: PyRRReaderSeqOrderConfig) -> Self {
+        Self::RRReaderSeqOrderConfig(c)
+    }
+}
+
+impl From<PyRRReaderRandOrderConfig> for PyNodeEnum {
+    fn from(c: PyRRReaderRandOrderConfig) -> Self {
+        Self::RRReaderRandOrderConfig(c)
+    }
 }
 
 impl Node for PyNodeEnum {
@@ -85,4 +152,31 @@ impl PyTreeReader {
     fn close(&mut self) {
         self.inner.take();
     }
+}
+
+/// Deserialize a node config from bytes.
+///
+/// Returns a `Box<dyn Node>` that can be composed or built into a reader.
+/// This is the Rust API for cross-library transfer (e.g., smarts receiving a config from pisky).
+pub fn node_from_bytes(serialized_config: &[u8]) -> Result<Box<dyn Node>> {
+    let json_str = std::str::from_utf8(serialized_config)
+        .map_err(|e| disky::error::DiskyError::Other(format!("Invalid UTF-8: {}", e)))?;
+
+    let node: PyNodeEnum = DeJson::deserialize_json(json_str)
+        .map_err(|e| disky::error::DiskyError::Other(format!("Failed to deserialize: {:?}", e)))?;
+
+    Ok(Box::new(node))
+}
+
+/// Deserialize a node config from bytes and build a tree reader.
+///
+/// This is the Rust API for building a reader directly.
+#[pyfunction]
+pub fn tree_from_bytes(serialized_config: &[u8]) -> PyResult<PyTreeReader> {
+    let node =
+        node_from_bytes(serialized_config).map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    let reader = node.make().map_err(|e| PyIOError::new_err(e.to_string()))?;
+
+    Ok(PyTreeReader::new(reader))
 }

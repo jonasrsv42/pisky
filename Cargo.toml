@@ -18,3 +18,4 @@ bytes = "1.4"
 disky = { git = "ssh://git@github.com/jonasrsv42/disky", features = ["parallel", "zstd", "random"]}
 log = "0.4"
 env_logger = "0.10"
+nanoserde = "0.2"

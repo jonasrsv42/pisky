@@ -1,5 +1,6 @@
 //! Reservoir shuffle for streaming data randomization.
 
+use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 
@@ -7,7 +8,8 @@ use disky::error::Result;
 use disky::tree::reader::{Node, Reader};
 use disky::tree::sampling::ReservoirShuffleConfig;
 
-use super::node::{PyNodeEnum, PyTreeReader};
+use super::node::PyNodeEnum;
+use super::node::PyTreeReader;
 
 /// Configuration for shuffling records from a source using reservoir sampling.
 ///
@@ -21,7 +23,7 @@ use super::node::{PyNodeEnum, PyTreeReader};
 ///         for record in reader:
 ///             # Records arrive in shuffled order
 #[pyclass(name = "ShuffleConfig")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PyShuffleConfig {
     pub child: Box<PyNodeEnum>,
     pub buffer_size: usize,
@@ -65,6 +67,11 @@ impl PyShuffleConfig {
         _traceback: Option<Bound<'_, PyAny>>,
     ) -> PyResult<bool> {
         Ok(false)
+    }
+
+    /// Serialize this config to bytes for cross-library transfer.
+    fn serialize_as_bytes(&self) -> Vec<u8> {
+        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
     }
 }
 

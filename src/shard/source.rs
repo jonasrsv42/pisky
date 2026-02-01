@@ -2,17 +2,18 @@
 
 use std::path::PathBuf;
 
+use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 
 use disky::shard::source::FileShards;
 
 /// How the shards were specified.
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub enum ShardSpec {
     Prefix(String),
     Pattern { dir: String, prefix: String },
-    Paths(Vec<PathBuf>),
+    Paths(Vec<String>),
 }
 
 impl ShardSpec {
@@ -25,7 +26,10 @@ impl ShardSpec {
         match self {
             ShardSpec::Prefix(prefix) => FileShards::from_prefix(prefix),
             ShardSpec::Pattern { dir, prefix } => FileShards::from_pattern(dir, prefix),
-            ShardSpec::Paths(paths) => FileShards::new(paths.clone()),
+            ShardSpec::Paths(paths) => {
+                let pathbufs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+                FileShards::new(pathbufs)
+            }
         }
     }
 }
@@ -37,7 +41,7 @@ impl ShardSpec {
 ///     shards = FileShards.from_prefix("/data/shard")
 ///     shards = FileShards.from_paths(["/data/shard_0", "/data/shard_1"])
 #[pyclass(name = "ReaderFileShards")]
-#[derive(Clone)]
+#[derive(Clone, SerJson, DeJson)]
 pub struct PyFileShards {
     pub spec: ShardSpec,
 }
@@ -48,7 +52,7 @@ impl PyFileShards {
     #[staticmethod]
     fn from_paths(paths: Vec<String>) -> Self {
         Self {
-            spec: ShardSpec::Paths(paths.into_iter().map(PathBuf::from).collect()),
+            spec: ShardSpec::Paths(paths),
         }
     }
 
