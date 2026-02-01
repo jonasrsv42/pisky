@@ -62,8 +62,8 @@ class MultiThreadedConfig:
         Args:
             order: The shard order strategy (Sequential or RandomRepeat).
             num_parallel: Number of shards to read in parallel (default: 2).
-            worker_threads: Number of worker threads (default: auto).
-            queue_size_mb: Size of the record queue in MB (default: auto).
+            worker_threads: Number of worker threads (default: 2).
+            queue_size_mb: Size of the record queue in MB (default: 8).
             corruption_strategy: How to handle corrupt records (CorruptionStrategy.RECOVER or .ERROR).
         """
         self._order = order

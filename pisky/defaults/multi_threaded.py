@@ -57,7 +57,7 @@ def read_shards_parallel(
         dir_path: Directory containing shard files
         pattern: Glob pattern prefix for shard files (default: "shard")
         num_parallel: Number of shards to read in parallel (default: 2)
-        worker_threads: Number of worker threads (default: auto)
+        worker_threads: Number of worker threads (default: 2)
         shuffle: Whether to shuffle shards and repeat infinitely (default: False)
         seed: Random seed for shuffling (required if shuffle=True)
         corruption_strategy: How to handle corrupt records (default: ERROR)
