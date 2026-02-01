@@ -115,6 +115,14 @@ impl Node for PyNodeEnum {
     }
 }
 
+/// Serialize a node config to bytes for cross-library transfer.
+///
+/// This is the Rust API for serializing configs (e.g., for smarts tests).
+/// Hides the serialization format details.
+pub fn serialize_node(node: &PyNodeEnum) -> Vec<u8> {
+    node.serialize_json().into_bytes()
+}
+
 /// Active tree reader - iterates over records from a composed tree.
 #[pyclass(name = "TreeReader")]
 pub struct PyTreeReader {

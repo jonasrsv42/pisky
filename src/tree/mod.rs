@@ -9,7 +9,7 @@ pub mod sampling;
 pub mod shuffle;
 mod threaded;
 
-pub use node::{PyNodeEnum, PyTreeReader, node_from_bytes, tree_from_bytes};
+pub use node::{PyNodeEnum, PyTreeReader, node_from_bytes, serialize_node, tree_from_bytes};
 pub use round_robin::PyRoundRobinConfig;
 pub use sampling::PySamplingConfig;
 pub use shuffle::PyShuffleConfig;
