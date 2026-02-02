@@ -1,7 +1,8 @@
 """Shard readers."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import TracebackType
+from typing import Any
 
 from pisky._pisky import RoundRobinReaderRandomOrderConfig as _RRRandConfig
 from pisky._pisky import RoundRobinReaderSequentialOrderConfig as _RRSeqConfig
@@ -116,6 +117,10 @@ class SequentialConfig:
             )
         ]
 
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Leaf node - return metadata with type and path."""
+        return [{"type": "SequentialConfig", "path": str(self._order._shards)}]
+
 
 class RoundRobinConfig:
     """
@@ -206,3 +211,7 @@ class RoundRobinConfig:
                 metadata=metadata,
             )
         ]
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Leaf node - return metadata with type and path."""
+        return [{"type": "RoundRobinConfig", "path": str(self._order._shards)}]

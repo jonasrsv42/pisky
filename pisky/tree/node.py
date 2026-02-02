@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Protocol, runtime_checkable
+from collections.abc import Mapping, Sequence
+from typing import Any, Protocol, runtime_checkable
 
 from pisky.tree.named.named_node import NamedNode
 
@@ -77,5 +77,20 @@ class NodeConfig(Protocol):
         Returns:
             Sequence of NamedNode from NamedNodeConfig nodes in subtree.
             Empty sequence if no named nodes in subtree.
+        """
+        ...
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Collect metadata from all leaves in this subtree.
+
+        Returns:
+            Sequence of metadata mappings, one per leaf node.
+            Leaf nodes return [{}] or [{...}] with their metadata.
+            Pass-through nodes (Shuffle, Threaded) return child's metadata.
+            Multi-child nodes (Sampling, RoundRobin) extend from all children.
+
+        Common metadata keys (by convention):
+            - "provenance": Data source version/origin for consistency checking
+            - "path": Path to data source
         """
         ...

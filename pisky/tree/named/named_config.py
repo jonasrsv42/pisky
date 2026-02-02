@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from types import TracebackType
+from typing import Any
 
 from pisky.bytes import Bytes
 from pisky.tree.named.named_node import NamedNode
@@ -79,3 +80,7 @@ class NamedNodeConfig:
                 terse=True,
             )
         ]
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Pass through child's metadata."""
+        return self._child.metadata()

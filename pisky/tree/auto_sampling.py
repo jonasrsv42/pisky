@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import TracebackType
+from typing import Any
 
 from pisky._pisky import SamplingConfig as _SamplingConfig
 from pisky.tree.named.named_node import NamedNode
@@ -140,3 +141,10 @@ class AutoSamplingConfig:
                 metadata=metadata,
             )
         ]
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Collect metadata from all children."""
+        result: list[Mapping[str, Any]] = []
+        for child in self._children:
+            result.extend(child.metadata())
+        return result

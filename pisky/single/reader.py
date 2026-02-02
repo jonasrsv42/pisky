@@ -2,8 +2,9 @@
 
 from pathlib import Path
 from types import TracebackType
+from typing import Any
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from .._pisky import RecordReader as _RecordReader
 from .._pisky import RecordReaderConfig as _RecordReaderConfig
@@ -128,6 +129,10 @@ class RecordReaderConfig:
                 metadata={"path": self._path},
             )
         ]
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Leaf node - return metadata with type and path."""
+        return [{"type": "RecordReaderConfig", "path": self._path}]
 
     @staticmethod
     def count_records(

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import TracebackType
+from typing import Any
 
 from pisky._pisky import ThreadedConfig as _ThreadedConfig
 from pisky.tree.named.named_node import NamedNode
@@ -101,3 +102,7 @@ class ThreadedConfig:
                 metadata={"buffer_size": self._buffer_size},
             )
         ]
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Pass through child's metadata."""
+        return self._child.metadata()

@@ -19,6 +19,10 @@ class FileShards:
     def __init__(self, inner: _FileShards) -> None:
         self._inner = inner
 
+    def __str__(self) -> str:
+        """Return string representation from Rust."""
+        return str(self._inner)
+
     @staticmethod
     def from_paths(paths: Sequence[StrPath]) -> "FileShards":
         """Create from an explicit list of file paths."""

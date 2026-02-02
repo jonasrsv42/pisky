@@ -77,4 +77,24 @@ impl PyFileShards {
             },
         }
     }
+
+    /// String representation showing the path.
+    fn __str__(&self) -> String {
+        match &self.spec {
+            ShardSpec::Prefix(prefix) => prefix.clone(),
+            ShardSpec::Pattern { dir, prefix } => format!("{}/{}", dir, prefix),
+            ShardSpec::Paths(paths) => {
+                if paths.len() <= 3 {
+                    paths.join(", ")
+                } else {
+                    format!(
+                        "{}, {} ... (+{} more)",
+                        paths[0],
+                        paths[1],
+                        paths.len() - 2
+                    )
+                }
+            }
+        }
+    }
 }

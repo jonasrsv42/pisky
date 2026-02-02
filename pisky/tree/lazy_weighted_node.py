@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from types import TracebackType
+from typing import Any
 
 from pisky.bytes import Bytes
 from pisky.tree.named.named_node import NamedNode
@@ -97,3 +98,9 @@ class LazyWeightedNodeConfig:
                 metadata={"weight": self._weight},
             )
         ]
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Pass through child's metadata."""
+        self._resolve()
+        assert self._child is not None
+        return self._child.metadata()

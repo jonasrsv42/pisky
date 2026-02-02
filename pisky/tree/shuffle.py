@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import TracebackType
+from typing import Any
 
 from pisky._pisky import ShuffleConfig as _ShuffleConfig
 from pisky.tree.named.named_node import NamedNode
@@ -107,3 +108,7 @@ class ShuffleConfig:
                 metadata=metadata,
             )
         ]
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Pass through child's metadata."""
+        return self._child.metadata()

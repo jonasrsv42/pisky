@@ -1,7 +1,8 @@
 """Multi-threaded shard readers."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import TracebackType
+from typing import Any
 
 from pisky._pisky import MultiThreadedReaderRandomOrderConfig as _MTRandConfig
 from pisky._pisky import MultiThreadedReaderSequentialOrderConfig as _MTSeqConfig
@@ -147,3 +148,7 @@ class MultiThreadedConfig:
                 metadata=metadata,
             )
         ]
+
+    def metadata(self) -> Sequence[Mapping[str, Any]]:
+        """Leaf node - return metadata with type and path."""
+        return [{"type": "MultiThreadedConfig", "path": str(self._order._shards)}]
