@@ -4,10 +4,8 @@ from collections.abc import Mapping, Sequence
 from types import TracebackType
 from typing import Any
 
-from pisky._pisky import MultiThreadedReaderRandomOrderConfig as _MTRandConfig
-from pisky._pisky import MultiThreadedReaderSequentialOrderConfig as _MTSeqConfig
+from pisky._pisky import MultiThreadedReaderConfig as _MTConfig
 from pisky._pisky import MultiThreadedReader
-from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards
 from pisky.shard.order import RandomRepeat, Sequential
 from pisky.tree.named.named_node import NamedNode
@@ -17,23 +15,19 @@ from pisky.tree.node import RustNode
 __all__ = ["FileShards", "MultiThreadedConfig", "count_records"]
 
 
-def count_records(
-    shards: FileShards,
-    corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
-) -> int:
+def count_records(shards: FileShards) -> int:
     """
     Count records across all shards.
 
     Args:
         shards: FileShards to count records from.
-        corruption_strategy: How to handle corrupted data.
 
     Returns:
         Total number of records across all shards.
     """
     order = Sequential(shards)
     count = 0
-    with MultiThreadedConfig(order, corruption_strategy=corruption_strategy) as reader:
+    with MultiThreadedConfig(order) as reader:
         for _ in reader:
             count += 1
     return count
@@ -57,7 +51,6 @@ class MultiThreadedConfig:
         num_parallel: int = 2,
         worker_threads: int | None = None,
         queue_size_mb: int | None = None,
-        corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
     ) -> None:
         """
         Args:
@@ -65,40 +58,22 @@ class MultiThreadedConfig:
             num_parallel: Number of shards to read in parallel (default: 2).
             worker_threads: Number of worker threads (default: 2).
             queue_size_mb: Size of the record queue in MB (default: 8).
-            corruption_strategy: How to handle corrupt records (CorruptionStrategy.RECOVER or .ERROR).
         """
         self._order = order
         self._num_parallel = num_parallel
         self._worker_threads = worker_threads
         self._queue_size_mb = queue_size_mb
-        self._corruption_strategy = corruption_strategy
         self._config: RustNode | None = None
         self._reader: MultiThreadedReader | None = None
 
     def _make_rust_config(self) -> RustNode:
-        """Create the Rust config object based on order type."""
-        shards = self._order._shards._inner
-        py_strategy = self._corruption_strategy._to_py()
-        match self._order:
-            case Sequential():
-                return _MTSeqConfig(
-                    shards,
-                    self._num_parallel,
-                    self._worker_threads,
-                    self._queue_size_mb,
-                    py_strategy,
-                )
-            case RandomRepeat():
-                return _MTRandConfig(
-                    shards,
-                    self._num_parallel,
-                    self._worker_threads,
-                    self._queue_size_mb,
-                    py_strategy,
-                    self._order._seed,
-                )
-            case _:
-                raise TypeError(f"Unknown order type: {type(self._order)}")
+        """Create the Rust config object."""
+        return _MTConfig(
+            self._order._inner,
+            self._num_parallel,
+            self._worker_threads,
+            self._queue_size_mb,
+        )
 
     def __enter__(self) -> MultiThreadedReader:
         self._config = self._make_rust_config()

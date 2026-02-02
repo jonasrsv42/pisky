@@ -6,8 +6,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from pisky.compression import Zstd, Uncompressed
-from pisky.protocol import StrPath
 from pisky.corruption import CorruptionStrategy
+from pisky.protocol import StrPath
 from pisky.shard.file_shards import FileShards as ReaderFileShards
 from pisky.multi_threaded.reader import count_records as _count_records
 from pisky.shard.order import Sequential, RandomRepeat
@@ -19,6 +19,7 @@ from pisky.multi_threaded.writer import MultiThreadedConfig as WriterConfig
 def count_shards_parallel(
     dir_path: StrPath,
     pattern: str = "shard",
+    corruption_strategy: CorruptionStrategy | None = None,
 ) -> int:
     """
     Count total records across all shards in a directory (multi-threaded).
@@ -26,6 +27,7 @@ def count_shards_parallel(
     Args:
         dir_path: Directory containing shard files
         pattern: Glob pattern prefix for shard files (default: "shard")
+        corruption_strategy: How to handle corrupt records (default: None = ERROR)
 
     Returns:
         Total number of records across all shards
@@ -36,7 +38,9 @@ def count_shards_parallel(
         total = count_shards_parallel("/data/dataset")
         print(f"Found {total} records")
     """
-    shards = ReaderFileShards.from_pattern(str(dir_path), pattern)
+    shards = ReaderFileShards.from_pattern(
+        str(dir_path), pattern, corruption_strategy=corruption_strategy
+    )
     return _count_records(shards)
 
 
@@ -48,7 +52,7 @@ def read_shards_parallel(
     worker_threads: int | None = None,
     shuffle: bool = False,
     seed: int | None = None,
-    corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
+    corruption_strategy: CorruptionStrategy | None = None,
 ):
     """
     Read records from sharded files in parallel (multi-threaded).
@@ -60,7 +64,7 @@ def read_shards_parallel(
         worker_threads: Number of worker threads (default: 2)
         shuffle: Whether to shuffle shards and repeat infinitely (default: False)
         seed: Random seed for shuffling (required if shuffle=True)
-        corruption_strategy: How to handle corrupt records (default: ERROR)
+        corruption_strategy: How to handle corrupt records (default: None = ERROR)
 
     Yields:
         Iterator over records from all shards
@@ -81,7 +85,9 @@ def read_shards_parallel(
                 process(record)
     """
     dir_path_str = str(dir_path)
-    shards = ReaderFileShards.from_pattern(dir_path_str, pattern)
+    shards = ReaderFileShards.from_pattern(
+        dir_path_str, pattern, corruption_strategy=corruption_strategy
+    )
 
     if shuffle:
         if seed is None:
@@ -94,7 +100,6 @@ def read_shards_parallel(
         order,
         num_parallel=num_parallel,
         worker_threads=worker_threads,
-        corruption_strategy=corruption_strategy,
     ) as reader:
         yield reader
 

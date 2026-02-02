@@ -7,13 +7,8 @@ use pyo3::prelude::*;
 use disky::error::Result;
 use disky::tree::reader::{Node, Reader};
 
-use crate::multi_threaded::{
-    PyMultiThreadedReaderRandOrderConfig, PyMultiThreadedReaderSeqOrderConfig,
-};
-use crate::shard::{
-    PyRRReaderRandOrderConfig, PyRRReaderSeqOrderConfig, PySeqReaderRandOrderConfig,
-    PySeqReaderSeqOrderConfig,
-};
+use crate::multi_threaded::PyMultiThreadedReaderConfig;
+use crate::shard::{PyRoundRobinReaderConfig, PySequentialReaderConfig};
 use crate::single::PyRecordReaderConfig;
 
 use super::{PyRoundRobinConfig, PySamplingConfig, PyShuffleConfig, PyThreadedConfig};
@@ -40,14 +35,11 @@ pub enum PyNodeEnum {
     SamplingConfig(PySamplingConfig),
     ShuffleConfig(PyShuffleConfig),
     ThreadedConfig(PyThreadedConfig),
-    // Shard readers (4 variants: 2 reading strategies × 2 iteration orders)
-    SeqReaderSeqOrderConfig(PySeqReaderSeqOrderConfig),
-    SeqReaderRandOrderConfig(PySeqReaderRandOrderConfig),
-    RRReaderSeqOrderConfig(PyRRReaderSeqOrderConfig),
-    RRReaderRandOrderConfig(PyRRReaderRandOrderConfig),
-    // Multi-threaded readers (2 variants: sequential vs random order)
-    MTReaderSeqOrderConfig(PyMultiThreadedReaderSeqOrderConfig),
-    MTReaderRandOrderConfig(PyMultiThreadedReaderRandOrderConfig),
+    // Shard readers (2 configs that accept order objects)
+    SequentialReaderConfig(PySequentialReaderConfig),
+    RoundRobinReaderConfig(PyRoundRobinReaderConfig),
+    // Multi-threaded reader (1 config that accepts order object)
+    MultiThreadedReaderConfig(PyMultiThreadedReaderConfig),
 }
 
 // From implementations for wrapping configs in the enum for serialization
@@ -81,39 +73,21 @@ impl From<PyThreadedConfig> for PyNodeEnum {
     }
 }
 
-impl From<PySeqReaderSeqOrderConfig> for PyNodeEnum {
-    fn from(c: PySeqReaderSeqOrderConfig) -> Self {
-        Self::SeqReaderSeqOrderConfig(c)
+impl From<PySequentialReaderConfig> for PyNodeEnum {
+    fn from(c: PySequentialReaderConfig) -> Self {
+        Self::SequentialReaderConfig(c)
     }
 }
 
-impl From<PySeqReaderRandOrderConfig> for PyNodeEnum {
-    fn from(c: PySeqReaderRandOrderConfig) -> Self {
-        Self::SeqReaderRandOrderConfig(c)
+impl From<PyRoundRobinReaderConfig> for PyNodeEnum {
+    fn from(c: PyRoundRobinReaderConfig) -> Self {
+        Self::RoundRobinReaderConfig(c)
     }
 }
 
-impl From<PyRRReaderSeqOrderConfig> for PyNodeEnum {
-    fn from(c: PyRRReaderSeqOrderConfig) -> Self {
-        Self::RRReaderSeqOrderConfig(c)
-    }
-}
-
-impl From<PyRRReaderRandOrderConfig> for PyNodeEnum {
-    fn from(c: PyRRReaderRandOrderConfig) -> Self {
-        Self::RRReaderRandOrderConfig(c)
-    }
-}
-
-impl From<PyMultiThreadedReaderSeqOrderConfig> for PyNodeEnum {
-    fn from(c: PyMultiThreadedReaderSeqOrderConfig) -> Self {
-        Self::MTReaderSeqOrderConfig(c)
-    }
-}
-
-impl From<PyMultiThreadedReaderRandOrderConfig> for PyNodeEnum {
-    fn from(c: PyMultiThreadedReaderRandOrderConfig) -> Self {
-        Self::MTReaderRandOrderConfig(c)
+impl From<PyMultiThreadedReaderConfig> for PyNodeEnum {
+    fn from(c: PyMultiThreadedReaderConfig) -> Self {
+        Self::MultiThreadedReaderConfig(c)
     }
 }
 
@@ -125,12 +99,9 @@ impl Node for PyNodeEnum {
             Self::SamplingConfig(c) => Box::new(c).make(),
             Self::ShuffleConfig(c) => Box::new(c).make(),
             Self::ThreadedConfig(c) => Box::new(c).make(),
-            Self::SeqReaderSeqOrderConfig(c) => Box::new(c).make(),
-            Self::SeqReaderRandOrderConfig(c) => Box::new(c).make(),
-            Self::RRReaderSeqOrderConfig(c) => Box::new(c).make(),
-            Self::RRReaderRandOrderConfig(c) => Box::new(c).make(),
-            Self::MTReaderSeqOrderConfig(c) => Box::new(c).make(),
-            Self::MTReaderRandOrderConfig(c) => Box::new(c).make(),
+            Self::SequentialReaderConfig(c) => Box::new(c).make(),
+            Self::RoundRobinReaderConfig(c) => Box::new(c).make(),
+            Self::MultiThreadedReaderConfig(c) => Box::new(c).make(),
         }
     }
 }

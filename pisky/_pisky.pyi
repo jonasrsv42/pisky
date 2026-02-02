@@ -165,6 +165,26 @@ class ReaderFileShards:
         """Create from explicit list of paths."""
         ...
 
+    def with_corruption_strategy(self, strategy: PyCorruptionStrategy) -> "ReaderFileShards":
+        """Return a new FileShards with the given corruption strategy."""
+        ...
+
+
+# =============================================================================
+# Shard order strategies
+# =============================================================================
+
+class SequentialOrder:
+    """Sequential order - iterate shards in order, finite."""
+
+    def __init__(self, shards: ReaderFileShards) -> None: ...
+
+
+class RandomRepeatOrder:
+    """Random repeating order - shuffle shards, infinite."""
+
+    def __init__(self, shards: ReaderFileShards, seed: int | None = None) -> None: ...
+
 
 # =============================================================================
 # Shard readers (shared reader type for all configs)
@@ -181,14 +201,10 @@ class ShardReader(Iterator[Bytes]):
     def __next__(self) -> Bytes: ...
 
 
-class SequentialReaderSequentialOrderConfig:
-    """Sequential shard reader with sequential order."""
+class SequentialReaderConfig:
+    """Sequential shard reader - drains each shard before moving to the next."""
 
-    def __init__(
-        self,
-        shards: ReaderFileShards,
-        corruption_strategy: PyCorruptionStrategy | None = None,
-    ) -> None: ...
+    def __init__(self, order: SequentialOrder | RandomRepeatOrder) -> None: ...
 
     def __enter__(self) -> ShardReader: ...
     def __exit__(
@@ -200,52 +216,12 @@ class SequentialReaderSequentialOrderConfig:
     def serialize_as_bytes(self) -> bytes: ...
 
 
-class SequentialReaderRandomOrderConfig:
-    """Sequential shard reader with random repeating order."""
+class RoundRobinReaderConfig:
+    """Round-robin shard reader - interleaves records across shards."""
 
     def __init__(
         self,
-        shards: ReaderFileShards,
-        corruption_strategy: PyCorruptionStrategy | None = None,
-    ) -> None: ...
-
-    def __enter__(self) -> ShardReader: ...
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> bool: ...
-    def serialize_as_bytes(self) -> bytes: ...
-
-
-class RoundRobinReaderSequentialOrderConfig:
-    """Round-robin shard reader with sequential order."""
-
-    def __init__(
-        self,
-        shards: ReaderFileShards,
-        corruption_strategy: PyCorruptionStrategy | None = None,
-        max_active: int | None = None,
-    ) -> None: ...
-
-    def __enter__(self) -> ShardReader: ...
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> bool: ...
-    def serialize_as_bytes(self) -> bytes: ...
-
-
-class RoundRobinReaderRandomOrderConfig:
-    """Round-robin shard reader with random repeating order."""
-
-    def __init__(
-        self,
-        shards: ReaderFileShards,
-        corruption_strategy: PyCorruptionStrategy | None = None,
+        order: SequentialOrder | RandomRepeatOrder,
         max_active: int | None = None,
     ) -> None: ...
 
@@ -316,39 +292,15 @@ class MultiThreadedReader(Iterator[Bytes]):
     def __next__(self) -> Bytes: ...
 
 
-class MultiThreadedReaderSequentialOrderConfig:
-    """Multi-threaded reader with sequential order."""
+class MultiThreadedReaderConfig:
+    """Multi-threaded reader - reads shards in parallel using worker threads."""
 
     def __init__(
         self,
-        shards: ReaderFileShards,
+        order: SequentialOrder | RandomRepeatOrder,
         num_parallel: int = 2,
         worker_threads: int | None = None,
         queue_size_mb: int | None = None,
-        corruption_strategy: PyCorruptionStrategy | None = None,
-    ) -> None: ...
-
-    def __enter__(self) -> MultiThreadedReader: ...
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> bool: ...
-    def serialize_as_bytes(self) -> bytes: ...
-
-
-class MultiThreadedReaderRandomOrderConfig:
-    """Multi-threaded reader with random repeating order."""
-
-    def __init__(
-        self,
-        shards: ReaderFileShards,
-        num_parallel: int = 2,
-        worker_threads: int | None = None,
-        queue_size_mb: int | None = None,
-        corruption_strategy: PyCorruptionStrategy | None = None,
-        seed: int | None = None,
     ) -> None: ...
 
     def __enter__(self) -> MultiThreadedReader: ...

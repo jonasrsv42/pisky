@@ -1,5 +1,7 @@
 """Shard iteration order strategies."""
 
+from pisky._pisky import RandomRepeatOrder as _RandomRepeatOrder
+from pisky._pisky import SequentialOrder as _SequentialOrder
 from pisky.shard.file_shards import FileShards
 
 
@@ -10,13 +12,14 @@ class Sequential:
     Example:
         shards = FileShards.from_pattern("/data", "shard")
         seq = order.Sequential(shards)
-        with reader.Sequential(seq) as r:
+        with reader.SequentialConfig(seq) as r:
             for record in r:
                 ...
     """
 
     def __init__(self, shards: FileShards) -> None:
         self._shards = shards
+        self._inner = _SequentialOrder(shards._inner)
 
 
 class RandomRepeat:
@@ -26,7 +29,7 @@ class RandomRepeat:
     Example:
         shards = FileShards.from_pattern("/data", "shard")
         rand = order.RandomRepeat(shards)
-        with reader.Sequential(rand) as r:
+        with reader.SequentialConfig(rand) as r:
             for record in r:  # infinite!
                 ...
 
@@ -37,3 +40,4 @@ class RandomRepeat:
     def __init__(self, shards: FileShards, seed: int | None = None) -> None:
         self._shards = shards
         self._seed = seed
+        self._inner = _RandomRepeatOrder(shards._inner, seed)

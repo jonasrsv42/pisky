@@ -1,8 +1,7 @@
 //! Multi-threaded shard reader PyO3 bindings.
 //!
-//! Provides 2 reader configs (sequential vs random order):
-//! - MultiThreadedReader + SequentialOrder: reads shards in order
-//! - MultiThreadedReader + RandomOrder: reads shards in shuffled order (infinite)
+//! Provides a single reader config that accepts order objects:
+//! - MultiThreadedReaderConfig: reads shards in parallel using specified order
 
 use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::PyIOError;
@@ -10,11 +9,9 @@ use pyo3::prelude::*;
 
 use disky::parallel::multi_threaded_reader::{MultiThreadedReader, MultiThreadedReaderConfig};
 use disky::parallel::reader::{DiskyParallelPiece, ParallelReaderConfig, ShardingConfig};
-use disky::shard::source::{FileShards, RandomRepeatingShardSource, SequentialShardSource};
 use disky::tree::reader::{Node, Reader};
 
-use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
-use crate::shard::source::PyFileShards;
+use crate::shard::order::ShardOrder;
 use crate::tree::node::PyNodeEnum;
 
 // =============================================================================
@@ -33,11 +30,11 @@ use crate::tree::node::PyNodeEnum;
 /// underlying reader uses internal synchronization, we rely on Rust's `Drop` for cleanup.
 #[pyclass(name = "MultiThreadedReader")]
 pub struct PyMultiThreadedReader {
-    reader: MultiThreadedReader<std::fs::File>,
+    reader: MultiThreadedReader,
 }
 
 impl PyMultiThreadedReader {
-    pub fn new(reader: MultiThreadedReader<std::fs::File>) -> Self {
+    pub fn new(reader: MultiThreadedReader) -> Self {
         Self { reader }
     }
 }
@@ -73,40 +70,33 @@ impl PyMultiThreadedReader {
 }
 
 // =============================================================================
-// Multi-threaded reader configs
+// Multi-threaded reader config
 // =============================================================================
 
-/// Multi-threaded reader with sequential order.
+/// Multi-threaded reader - reads shards in parallel using background threads.
 ///
-/// Reads shards in parallel, in sequential order.
-#[pyclass(name = "MultiThreadedReaderSequentialOrderConfig")]
+/// Example:
+///     shards = FileShards.from_pattern("/data", "shard")
+///     order = SequentialOrder(shards)
+///     with MultiThreadedReaderConfig(order, num_parallel=4) as reader:
+///         for record in reader:
+///             process(record)
+#[pyclass(name = "MultiThreadedReaderConfig")]
 #[derive(Clone, SerJson, DeJson)]
-pub struct PyMultiThreadedReaderSeqOrderConfig {
-    pub shards: PyFileShards,
+pub struct PyMultiThreadedReaderConfig {
+    pub order: ShardOrder,
     pub num_parallel: usize,
     pub worker_threads: Option<usize>,
     pub queue_size_mb: Option<usize>,
-    pub corruption_strategy: Option<PyCorruptionStrategy>,
 }
 
-impl PyMultiThreadedReaderSeqOrderConfig {
-    /// Build the multi-threaded reader from disky FileShards.
-    fn build_reader(
-        &self,
-        file_shards: FileShards,
-    ) -> disky::error::Result<MultiThreadedReader<std::fs::File>> {
-        let source = SequentialShardSource::new(file_shards);
-        let sharding_config = ShardingConfig::new(Box::new(source), self.num_parallel);
-
-        let mut parallel_reader_config = ParallelReaderConfig::default();
-        if let Some(strategy) = convert_corruption_strategy(self.corruption_strategy) {
-            parallel_reader_config.reader_options = parallel_reader_config
-                .reader_options
-                .with_corruption_strategy(strategy);
-        }
+impl PyMultiThreadedReaderConfig {
+    fn build_reader(&self) -> disky::error::Result<MultiThreadedReader> {
+        let source = self.order.clone().into_source()?;
+        let sharding_config = ShardingConfig::new(source, self.num_parallel);
 
         let mut mt_config = MultiThreadedReaderConfig::new(sharding_config)
-            .with_reader_config(parallel_reader_config);
+            .with_reader_config(ParallelReaderConfig::new());
 
         if let Some(threads) = self.worker_threads {
             mt_config = mt_config.with_worker_threads(threads);
@@ -120,30 +110,27 @@ impl PyMultiThreadedReaderSeqOrderConfig {
 }
 
 #[pymethods]
-impl PyMultiThreadedReaderSeqOrderConfig {
+impl PyMultiThreadedReaderConfig {
     #[new]
-    #[pyo3(signature = (shards, num_parallel=2, worker_threads=None, queue_size_mb=None, corruption_strategy=None))]
+    #[pyo3(signature = (order, num_parallel=2, worker_threads=None, queue_size_mb=None))]
     fn new(
-        shards: PyFileShards,
+        order: ShardOrder,
         num_parallel: usize,
         worker_threads: Option<usize>,
         queue_size_mb: Option<usize>,
-        corruption_strategy: Option<PyCorruptionStrategy>,
     ) -> Self {
         Self {
-            shards,
+            order,
             num_parallel,
             worker_threads,
             queue_size_mb,
-            corruption_strategy,
         }
     }
 
     fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyMultiThreadedReader>> {
         let config = slf.borrow(py);
-        let file_shards = config.shards.spec.build()?;
         let reader = config
-            .build_reader(file_shards)
+            .build_reader()
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
         Py::new(py, PyMultiThreadedReader::new(reader))
     }
@@ -163,109 +150,8 @@ impl PyMultiThreadedReaderSeqOrderConfig {
     }
 }
 
-impl Node for PyMultiThreadedReaderSeqOrderConfig {
+impl Node for PyMultiThreadedReaderConfig {
     fn make(self: Box<Self>) -> disky::error::Result<Reader> {
-        let file_shards = self.shards.spec.build_disky()?;
-        Ok(Box::new(self.build_reader(file_shards)?))
-    }
-}
-
-/// Multi-threaded reader with random repeating order.
-///
-/// Reads shards in parallel, in shuffled order. Repeats infinitely.
-#[pyclass(name = "MultiThreadedReaderRandomOrderConfig")]
-#[derive(Clone, SerJson, DeJson)]
-pub struct PyMultiThreadedReaderRandOrderConfig {
-    pub shards: PyFileShards,
-    pub num_parallel: usize,
-    pub worker_threads: Option<usize>,
-    pub queue_size_mb: Option<usize>,
-    pub corruption_strategy: Option<PyCorruptionStrategy>,
-    pub seed: Option<u64>,
-}
-
-impl PyMultiThreadedReaderRandOrderConfig {
-    /// Build the multi-threaded reader from disky FileShards.
-    fn build_reader(
-        &self,
-        file_shards: FileShards,
-    ) -> disky::error::Result<MultiThreadedReader<std::fs::File>> {
-        let source = match self.seed {
-            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
-            None => RandomRepeatingShardSource::new(file_shards),
-        };
-        let sharding_config = ShardingConfig::new(Box::new(source), self.num_parallel);
-
-        let mut parallel_reader_config = ParallelReaderConfig::default();
-        if let Some(strategy) = convert_corruption_strategy(self.corruption_strategy) {
-            parallel_reader_config.reader_options = parallel_reader_config
-                .reader_options
-                .with_corruption_strategy(strategy);
-        }
-
-        let mut mt_config = MultiThreadedReaderConfig::new(sharding_config)
-            .with_reader_config(parallel_reader_config);
-
-        if let Some(threads) = self.worker_threads {
-            mt_config = mt_config.with_worker_threads(threads);
-        }
-        if let Some(queue_mb) = self.queue_size_mb {
-            mt_config = mt_config.with_queue_size_bytes(queue_mb * 1024 * 1024);
-        }
-
-        mt_config.build()
-    }
-}
-
-#[pymethods]
-impl PyMultiThreadedReaderRandOrderConfig {
-    #[new]
-    #[pyo3(signature = (shards, num_parallel=2, worker_threads=None, queue_size_mb=None, corruption_strategy=None, seed=None))]
-    fn new(
-        shards: PyFileShards,
-        num_parallel: usize,
-        worker_threads: Option<usize>,
-        queue_size_mb: Option<usize>,
-        corruption_strategy: Option<PyCorruptionStrategy>,
-        seed: Option<u64>,
-    ) -> Self {
-        Self {
-            shards,
-            num_parallel,
-            worker_threads,
-            queue_size_mb,
-            corruption_strategy,
-            seed,
-        }
-    }
-
-    fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyMultiThreadedReader>> {
-        let config = slf.borrow(py);
-        let file_shards = config.shards.spec.build()?;
-        let reader = config
-            .build_reader(file_shards)
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
-        Py::new(py, PyMultiThreadedReader::new(reader))
-    }
-
-    fn __exit__(
-        &self,
-        _a: Option<Bound<'_, PyAny>>,
-        _b: Option<Bound<'_, PyAny>>,
-        _c: Option<Bound<'_, PyAny>>,
-    ) -> bool {
-        false
-    }
-
-    /// Serialize this config to bytes for cross-library transfer.
-    fn serialize_as_bytes(&self) -> Vec<u8> {
-        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
-    }
-}
-
-impl Node for PyMultiThreadedReaderRandOrderConfig {
-    fn make(self: Box<Self>) -> disky::error::Result<Reader> {
-        let file_shards = self.shards.spec.build_disky()?;
-        Ok(Box::new(self.build_reader(file_shards)?))
+        Ok(Box::new(self.build_reader()?))
     }
 }

@@ -3,10 +3,12 @@
 use std::path::PathBuf;
 
 use nanoserde::{DeJson, SerJson};
-use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 
+use disky::reader::RecordReaderOptions;
 use disky::shard::source::FileShards;
+
+use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
 
 /// How the shards were specified.
 #[derive(Clone, SerJson, DeJson)]
@@ -17,12 +19,7 @@ pub enum ShardSpec {
 }
 
 impl ShardSpec {
-    pub fn build(&self) -> PyResult<FileShards> {
-        self.build_disky()
-            .map_err(|e| PyIOError::new_err(e.to_string()))
-    }
-
-    pub fn build_disky(&self) -> disky::error::Result<FileShards> {
+    fn build_base(&self) -> disky::error::Result<FileShards> {
         match self {
             ShardSpec::Prefix(prefix) => FileShards::from_prefix(prefix),
             ShardSpec::Pattern { dir, prefix } => FileShards::from_pattern(dir, prefix),
@@ -40,10 +37,24 @@ impl ShardSpec {
 ///     shards = FileShards.from_pattern("/data", "shard")
 ///     shards = FileShards.from_prefix("/data/shard")
 ///     shards = FileShards.from_paths(["/data/shard_0", "/data/shard_1"])
+///     shards = shards.with_corruption_strategy(CorruptionStrategy.RECOVER)
 #[pyclass(name = "ReaderFileShards")]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyFileShards {
     pub spec: ShardSpec,
+    pub corruption_strategy: Option<PyCorruptionStrategy>,
+}
+
+impl PyFileShards {
+    /// Convert to disky FileShards with reader options applied.
+    pub fn into_disky(&self) -> disky::error::Result<FileShards> {
+        let shards = self.spec.build_base()?;
+        let mut options = RecordReaderOptions::default();
+        if let Some(strategy) = convert_corruption_strategy(self.corruption_strategy) {
+            options = options.with_corruption_strategy(strategy);
+        }
+        Ok(shards.reader_options(options))
+    }
 }
 
 #[pymethods]
@@ -53,6 +64,7 @@ impl PyFileShards {
     fn from_paths(paths: Vec<String>) -> Self {
         Self {
             spec: ShardSpec::Paths(paths),
+            corruption_strategy: None,
         }
     }
 
@@ -64,6 +76,7 @@ impl PyFileShards {
     fn from_prefix(prefix: &str) -> Self {
         Self {
             spec: ShardSpec::Prefix(prefix.to_string()),
+            corruption_strategy: None,
         }
     }
 
@@ -75,6 +88,17 @@ impl PyFileShards {
                 dir: dir.to_string(),
                 prefix: prefix.to_string(),
             },
+            corruption_strategy: None,
+        }
+    }
+
+    /// Set the corruption strategy for reading shards.
+    ///
+    /// Returns a new FileShards with the corruption strategy set.
+    fn with_corruption_strategy(&self, strategy: PyCorruptionStrategy) -> Self {
+        Self {
+            spec: self.spec.clone(),
+            corruption_strategy: Some(strategy),
         }
     }
 
@@ -87,12 +111,7 @@ impl PyFileShards {
                 if paths.len() <= 3 {
                     paths.join(", ")
                 } else {
-                    format!(
-                        "{}, {} ... (+{} more)",
-                        paths[0],
-                        paths[1],
-                        paths.len() - 2
-                    )
+                    format!("{}, {} ... (+{} more)", paths[0], paths[1], paths.len() - 2)
                 }
             }
         }

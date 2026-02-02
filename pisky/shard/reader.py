@@ -4,12 +4,9 @@ from collections.abc import Mapping, Sequence
 from types import TracebackType
 from typing import Any
 
-from pisky._pisky import RoundRobinReaderRandomOrderConfig as _RRRandConfig
-from pisky._pisky import RoundRobinReaderSequentialOrderConfig as _RRSeqConfig
-from pisky._pisky import SequentialReaderRandomOrderConfig as _SeqRandConfig
-from pisky._pisky import SequentialReaderSequentialOrderConfig as _SeqSeqConfig
+from pisky._pisky import RoundRobinReaderConfig as _RoundRobinConfig
+from pisky._pisky import SequentialReaderConfig as _SequentialConfig
 from pisky._pisky import ShardReader
-from pisky.corruption import CorruptionStrategy
 from pisky.shard.file_shards import FileShards
 from pisky.shard.order import RandomRepeat, Sequential
 from pisky.tree.named.named_node import NamedNode
@@ -19,23 +16,19 @@ from pisky.tree.node import RustNode
 __all__ = ["FileShards", "SequentialConfig", "RoundRobinConfig", "count_records"]
 
 
-def count_records(
-    shards: FileShards,
-    corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
-) -> int:
+def count_records(shards: FileShards) -> int:
     """
     Count records across all shards.
 
     Args:
         shards: FileShards to count records from.
-        corruption_strategy: How to handle corrupted data.
 
     Returns:
         Total number of records across all shards.
     """
     order = Sequential(shards)
     count = 0
-    with SequentialConfig(order, corruption_strategy) as reader:
+    with SequentialConfig(order) as reader:
         for _ in reader:
             count += 1
     return count
@@ -53,27 +46,14 @@ class SequentialConfig:
                 process(bytes(record))
     """
 
-    def __init__(
-        self,
-        order: Sequential | RandomRepeat,
-        corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
-    ) -> None:
+    def __init__(self, order: Sequential | RandomRepeat) -> None:
         self._order = order
-        self._corruption_strategy = corruption_strategy
         self._config: RustNode | None = None
         self._reader: ShardReader | None = None
 
     def _make_rust_config(self) -> RustNode:
-        """Create the Rust config object based on order type."""
-        shards = self._order._shards._inner
-        py_strategy = self._corruption_strategy._to_py()
-        match self._order:
-            case Sequential():
-                return _SeqSeqConfig(shards, py_strategy)
-            case RandomRepeat():
-                return _SeqRandConfig(shards, py_strategy, self._order._seed)
-            case _:
-                raise TypeError(f"Unknown order type: {type(self._order)}")
+        """Create the Rust config object."""
+        return _SequentialConfig(self._order._inner)
 
     def __enter__(self) -> ShardReader:
         self._config = self._make_rust_config()
@@ -137,36 +117,23 @@ class RoundRobinConfig:
     def __init__(
         self,
         order: Sequential | RandomRepeat,
-        corruption_strategy: CorruptionStrategy = CorruptionStrategy.ERROR,
         max_active: int | None = None,
     ) -> None:
         """
         Args:
             order: The shard order strategy (Sequential or RandomRepeat).
-            corruption_strategy: How to handle corrupt records (CorruptionStrategy.RECOVER or .ERROR).
             max_active: Maximum number of shards to keep open simultaneously.
                 - None (default): open all shards upfront. Do not use with RandomRepeat.
                 - int: keep at most N readers open, replacing exhausted shards on the fly.
         """
         self._order = order
-        self._corruption_strategy = corruption_strategy
         self._max_active = max_active
         self._config: RustNode | None = None
         self._reader: ShardReader | None = None
 
     def _make_rust_config(self) -> RustNode:
-        """Create the Rust config object based on order type."""
-        shards = self._order._shards._inner
-        py_strategy = self._corruption_strategy._to_py()
-        match self._order:
-            case Sequential():
-                return _RRSeqConfig(shards, py_strategy, self._max_active)
-            case RandomRepeat():
-                return _RRRandConfig(
-                    shards, py_strategy, self._max_active, self._order._seed
-                )
-            case _:
-                raise TypeError(f"Unknown order type: {type(self._order)}")
+        """Create the Rust config object."""
+        return _RoundRobinConfig(self._order._inner, self._max_active)
 
     def __enter__(self) -> ShardReader:
         self._config = self._make_rust_config()

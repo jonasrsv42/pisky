@@ -7,21 +7,19 @@ from typing import Any, Protocol, runtime_checkable
 
 from pisky.tree.named.named_node import NamedNode
 
+from pisky._pisky import MultiThreadedReaderConfig as RustMultiThreadedReaderConfig
 from pisky._pisky import RecordReaderConfig as RustRecordReaderConfig
 from pisky._pisky import RoundRobinConfig as RustRoundRobinConfig
-from pisky._pisky import RoundRobinReaderRandomOrderConfig
-from pisky._pisky import RoundRobinReaderSequentialOrderConfig
+from pisky._pisky import RoundRobinReaderConfig as RustRoundRobinReaderConfig
 from pisky._pisky import SamplingConfig as RustSamplingConfig
-from pisky._pisky import SequentialReaderRandomOrderConfig
-from pisky._pisky import SequentialReaderSequentialOrderConfig
+from pisky._pisky import SequentialReaderConfig as RustSequentialReaderConfig
 from pisky._pisky import ShuffleConfig as RustShuffleConfig
 from pisky._pisky import ThreadedConfig as RustThreadedConfig
 
 RustNode = (
-    SequentialReaderSequentialOrderConfig
-    | SequentialReaderRandomOrderConfig
-    | RoundRobinReaderSequentialOrderConfig
-    | RoundRobinReaderRandomOrderConfig
+    RustSequentialReaderConfig
+    | RustRoundRobinReaderConfig
+    | RustMultiThreadedReaderConfig
     | RustRoundRobinConfig
     | RustRecordReaderConfig
     | RustSamplingConfig

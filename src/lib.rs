@@ -15,14 +15,13 @@ mod logging;
 // New API types
 use compression::{PyUncompressed, PyZstd};
 use multi_threaded::{
-    PyMultiThreadedReader, PyMultiThreadedReaderRandOrderConfig,
-    PyMultiThreadedReaderSeqOrderConfig, PyMultiThreadedWriterConfig,
+    PyMultiThreadedReader, PyMultiThreadedReaderConfig, PyMultiThreadedWriterConfig,
     PyMultiThreadedWriterInstance,
 };
 use shard::{
-    PyRRReaderRandOrderConfig, PyRRReaderSeqOrderConfig, PyReaderFileShards,
-    PySeqReaderRandOrderConfig, PySeqReaderSeqOrderConfig, PySequentialWriter,
-    PySequentialWriterConfig, PyShardReader, PyWriterFileShards,
+    PyRandomRepeatOrder, PyReaderFileShards, PyRoundRobinReaderConfig, PySequentialOrder,
+    PySequentialReaderConfig, PySequentialWriter, PySequentialWriterConfig, PyShardReader,
+    PyWriterFileShards,
 };
 use single::{PyRecordReader, PyRecordReaderConfig, PyRecordWriter, PyRecordWriterConfig};
 use tree::{
@@ -48,12 +47,12 @@ fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyZstd>()?;
     m.add_class::<PyUncompressed>()?;
 
-    // New config-based API - sharded readers (4 configs + 1 shared reader)
+    // New config-based API - sharded readers (2 configs + 2 orders + 1 shared reader)
     m.add_class::<PyReaderFileShards>()?;
-    m.add_class::<PySeqReaderSeqOrderConfig>()?;
-    m.add_class::<PySeqReaderRandOrderConfig>()?;
-    m.add_class::<PyRRReaderSeqOrderConfig>()?;
-    m.add_class::<PyRRReaderRandOrderConfig>()?;
+    m.add_class::<PySequentialOrder>()?;
+    m.add_class::<PyRandomRepeatOrder>()?;
+    m.add_class::<PySequentialReaderConfig>()?;
+    m.add_class::<PyRoundRobinReaderConfig>()?;
     m.add_class::<PyShardReader>()?;
 
     // New config-based API - sharded writers
@@ -61,9 +60,8 @@ fn _pisky(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PySequentialWriterConfig>()?;
     m.add_class::<PySequentialWriter>()?;
 
-    // New config-based API - multi-threaded readers (2 configs + 1 shared reader)
-    m.add_class::<PyMultiThreadedReaderSeqOrderConfig>()?;
-    m.add_class::<PyMultiThreadedReaderRandOrderConfig>()?;
+    // New config-based API - multi-threaded reader (1 config + 1 shared reader)
+    m.add_class::<PyMultiThreadedReaderConfig>()?;
     m.add_class::<PyMultiThreadedReader>()?;
 
     // New config-based API - multi-threaded writers (uses PyWriterFileShards from sharded writers)

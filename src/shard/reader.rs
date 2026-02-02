@@ -1,24 +1,19 @@
 //! Shard reader PyO3 bindings.
 //!
-//! Provides 4 reader configs (2 reading strategies × 2 iteration orders):
-//! - SequentialReader + SequentialOrder: drains shards in order
-//! - SequentialReader + RandomOrder: drains shards in shuffled order (infinite)
-//! - RoundRobinReader + SequentialOrder: interleaves shards in order
-//! - RoundRobinReader + RandomOrder: interleaves shards in shuffled order (infinite)
+//! Provides 2 reader configs that accept order objects:
+//! - SequentialReaderConfig: drains each shard before moving to the next
+//! - RoundRobinReaderConfig: interleaves records across shards
 
 use nanoserde::{DeJson, SerJson};
 use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 
-use disky::reader::RecordReaderOptions;
 use disky::shard::reader::{RoundRobinShardReaderConfig, SequentialShardReaderConfig};
-use disky::shard::source::{RandomRepeatingShardSource, SequentialShardSource};
 use disky::tree::reader::{Node, Reader};
 
-use crate::corruption::{PyCorruptionStrategy, convert_corruption_strategy};
 use crate::tree::node::PyNodeEnum;
 
-use super::source::PyFileShards;
+use super::order::ShardOrder;
 
 // =============================================================================
 // Shared reader wrapper
@@ -66,43 +61,42 @@ impl PyShardReader {
 }
 
 // =============================================================================
-// Sequential reader configs
+// Sequential reader config
 // =============================================================================
 
-/// Sequential shard reader with sequential order.
+/// Sequential shard reader - drains each shard completely before moving to the next.
 ///
-/// Drains each shard completely before moving to the next, in order.
-#[pyclass(name = "SequentialReaderSequentialOrderConfig")]
+/// Example:
+///     shards = FileShards.from_pattern("/data", "shard")
+///     order = SequentialOrder(shards)
+///     with SequentialReaderConfig(order) as reader:
+///         for record in reader:
+///             process(record)
+#[pyclass(name = "SequentialReaderConfig")]
 #[derive(Clone, SerJson, DeJson)]
-pub struct PySeqReaderSeqOrderConfig {
-    pub shards: PyFileShards,
-    pub corruption_strategy: Option<PyCorruptionStrategy>,
+pub struct PySequentialReaderConfig {
+    pub order: ShardOrder,
+}
+
+impl PySequentialReaderConfig {
+    fn build_reader(&self) -> disky::error::Result<Reader> {
+        let source = self.order.clone().into_source()?;
+        let reader = SequentialShardReaderConfig::new(source).build();
+        Ok(Box::new(reader))
+    }
 }
 
 #[pymethods]
-impl PySeqReaderSeqOrderConfig {
+impl PySequentialReaderConfig {
     #[new]
-    #[pyo3(signature = (shards, corruption_strategy=None))]
-    fn new(shards: PyFileShards, corruption_strategy: Option<PyCorruptionStrategy>) -> Self {
-        Self {
-            shards,
-            corruption_strategy,
-        }
+    fn new(order: ShardOrder) -> Self {
+        Self { order }
     }
 
     fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyShardReader>> {
         let config = slf.borrow(py);
-        let file_shards = config.shards.spec.build()?;
-        let source = SequentialShardSource::new(file_shards);
-
-        let mut builder = SequentialShardReaderConfig::new(source);
-        if let Some(s) = convert_corruption_strategy(config.corruption_strategy) {
-            builder =
-                builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
-        }
-
-        let reader: Reader = Box::new(builder)
-            .make()
+        let reader = config
+            .build_reader()
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
         Py::new(py, PyShardReader::new(reader))
     }
@@ -122,149 +116,54 @@ impl PySeqReaderSeqOrderConfig {
     }
 }
 
-impl Node for PySeqReaderSeqOrderConfig {
+impl Node for PySequentialReaderConfig {
     fn make(self: Box<Self>) -> disky::error::Result<Reader> {
-        let file_shards = self.shards.spec.build_disky()?;
-        let source = SequentialShardSource::new(file_shards);
-
-        let mut builder = SequentialShardReaderConfig::new(source);
-        if let Some(s) = convert_corruption_strategy(self.corruption_strategy) {
-            builder =
-                builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
-        }
-
-        Box::new(builder).make()
-    }
-}
-
-/// Sequential shard reader with random repeating order.
-///
-/// Drains each shard completely before moving to the next, in shuffled order.
-/// Repeats infinitely.
-#[pyclass(name = "SequentialReaderRandomOrderConfig")]
-#[derive(Clone, SerJson, DeJson)]
-pub struct PySeqReaderRandOrderConfig {
-    pub shards: PyFileShards,
-    pub corruption_strategy: Option<PyCorruptionStrategy>,
-    pub seed: Option<u64>,
-}
-
-#[pymethods]
-impl PySeqReaderRandOrderConfig {
-    #[new]
-    #[pyo3(signature = (shards, corruption_strategy=None, seed=None))]
-    fn new(
-        shards: PyFileShards,
-        corruption_strategy: Option<PyCorruptionStrategy>,
-        seed: Option<u64>,
-    ) -> Self {
-        Self {
-            shards,
-            corruption_strategy,
-            seed,
-        }
-    }
-
-    fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyShardReader>> {
-        let config = slf.borrow(py);
-        let file_shards = config.shards.spec.build()?;
-        let source = match config.seed {
-            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
-            None => RandomRepeatingShardSource::new(file_shards),
-        };
-
-        let mut builder = SequentialShardReaderConfig::new(source);
-        if let Some(s) = convert_corruption_strategy(config.corruption_strategy) {
-            builder =
-                builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
-        }
-
-        let reader: Reader = Box::new(builder)
-            .make()
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
-        Py::new(py, PyShardReader::new(reader))
-    }
-
-    fn __exit__(
-        &self,
-        _a: Option<Bound<'_, PyAny>>,
-        _b: Option<Bound<'_, PyAny>>,
-        _c: Option<Bound<'_, PyAny>>,
-    ) -> bool {
-        false
-    }
-
-    /// Serialize this config to bytes for cross-library transfer.
-    fn serialize_as_bytes(&self) -> Vec<u8> {
-        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
-    }
-}
-
-impl Node for PySeqReaderRandOrderConfig {
-    fn make(self: Box<Self>) -> disky::error::Result<Reader> {
-        let file_shards = self.shards.spec.build_disky()?;
-        let source = match self.seed {
-            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
-            None => RandomRepeatingShardSource::new(file_shards),
-        };
-
-        let mut builder = SequentialShardReaderConfig::new(source);
-        if let Some(s) = convert_corruption_strategy(self.corruption_strategy) {
-            builder =
-                builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
-        }
-
-        Box::new(builder).make()
+        self.build_reader()
     }
 }
 
 // =============================================================================
-// Round-robin reader configs
+// Round-robin reader config
 // =============================================================================
 
-/// Round-robin shard reader with sequential order.
+/// Round-robin shard reader - reads one record from each shard in rotation.
 ///
-/// Reads one record from each shard in rotation, in order.
-#[pyclass(name = "RoundRobinReaderSequentialOrderConfig")]
+/// Example:
+///     shards = FileShards.from_pattern("/data", "shard")
+///     order = SequentialOrder(shards)
+///     with RoundRobinReaderConfig(order, max_active=4) as reader:
+///         for record in reader:
+///             process(record)
+#[pyclass(name = "RoundRobinReaderConfig")]
 #[derive(Clone, SerJson, DeJson)]
-pub struct PyRRReaderSeqOrderConfig {
-    pub shards: PyFileShards,
-    pub corruption_strategy: Option<PyCorruptionStrategy>,
+pub struct PyRoundRobinReaderConfig {
+    pub order: ShardOrder,
     pub max_active: Option<usize>,
 }
 
-#[pymethods]
-impl PyRRReaderSeqOrderConfig {
-    #[new]
-    #[pyo3(signature = (shards, corruption_strategy=None, max_active=None))]
-    fn new(
-        shards: PyFileShards,
-        corruption_strategy: Option<PyCorruptionStrategy>,
-        max_active: Option<usize>,
-    ) -> Self {
-        Self {
-            shards,
-            corruption_strategy,
-            max_active,
+impl PyRoundRobinReaderConfig {
+    fn build_reader(&self) -> disky::error::Result<Reader> {
+        let source = self.order.clone().into_source()?;
+        let mut builder = RoundRobinShardReaderConfig::new(source);
+        if let Some(max) = self.max_active {
+            builder = builder.max_active(max);
         }
+        Ok(Box::new(builder.build()?))
+    }
+}
+
+#[pymethods]
+impl PyRoundRobinReaderConfig {
+    #[new]
+    #[pyo3(signature = (order, max_active=None))]
+    fn new(order: ShardOrder, max_active: Option<usize>) -> Self {
+        Self { order, max_active }
     }
 
     fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyShardReader>> {
         let config = slf.borrow(py);
-        let file_shards = config.shards.spec.build()?;
-        let source = SequentialShardSource::new(file_shards);
-
-        let mut builder = RoundRobinShardReaderConfig::new(source);
-        if let Some(s) = convert_corruption_strategy(config.corruption_strategy) {
-            builder =
-                builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
-        }
-        if let Some(max) = config.max_active {
-            builder = builder.max_active(max);
-        }
-
-        let reader: Reader = Box::new(builder)
-            .make()
+        let reader = config
+            .build_reader()
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
         Py::new(py, PyShardReader::new(reader))
     }
@@ -284,110 +183,8 @@ impl PyRRReaderSeqOrderConfig {
     }
 }
 
-impl Node for PyRRReaderSeqOrderConfig {
+impl Node for PyRoundRobinReaderConfig {
     fn make(self: Box<Self>) -> disky::error::Result<Reader> {
-        let file_shards = self.shards.spec.build_disky()?;
-        let source = SequentialShardSource::new(file_shards);
-
-        let mut builder = RoundRobinShardReaderConfig::new(source);
-        if let Some(s) = convert_corruption_strategy(self.corruption_strategy) {
-            builder =
-                builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
-        }
-        if let Some(max) = self.max_active {
-            builder = builder.max_active(max);
-        }
-
-        Box::new(builder).make()
-    }
-}
-
-/// Round-robin shard reader with random repeating order.
-///
-/// Reads one record from each shard in rotation, in shuffled order.
-/// Repeats infinitely.
-#[pyclass(name = "RoundRobinReaderRandomOrderConfig")]
-#[derive(Clone, SerJson, DeJson)]
-pub struct PyRRReaderRandOrderConfig {
-    pub shards: PyFileShards,
-    pub corruption_strategy: Option<PyCorruptionStrategy>,
-    pub max_active: Option<usize>,
-    pub seed: Option<u64>,
-}
-
-#[pymethods]
-impl PyRRReaderRandOrderConfig {
-    #[new]
-    #[pyo3(signature = (shards, corruption_strategy=None, max_active=None, seed=None))]
-    fn new(
-        shards: PyFileShards,
-        corruption_strategy: Option<PyCorruptionStrategy>,
-        max_active: Option<usize>,
-        seed: Option<u64>,
-    ) -> Self {
-        Self {
-            shards,
-            corruption_strategy,
-            max_active,
-            seed,
-        }
-    }
-
-    fn __enter__(slf: Py<Self>, py: Python<'_>) -> PyResult<Py<PyShardReader>> {
-        let config = slf.borrow(py);
-        let file_shards = config.shards.spec.build()?;
-        let source = match config.seed {
-            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
-            None => RandomRepeatingShardSource::new(file_shards),
-        };
-
-        let mut builder = RoundRobinShardReaderConfig::new(source);
-        if let Some(s) = convert_corruption_strategy(config.corruption_strategy) {
-            builder =
-                builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
-        }
-        if let Some(max) = config.max_active {
-            builder = builder.max_active(max);
-        }
-
-        let reader: Reader = Box::new(builder)
-            .make()
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
-        Py::new(py, PyShardReader::new(reader))
-    }
-
-    fn __exit__(
-        &self,
-        _a: Option<Bound<'_, PyAny>>,
-        _b: Option<Bound<'_, PyAny>>,
-        _c: Option<Bound<'_, PyAny>>,
-    ) -> bool {
-        false
-    }
-
-    /// Serialize this config to bytes for cross-library transfer.
-    fn serialize_as_bytes(&self) -> Vec<u8> {
-        PyNodeEnum::from(self.clone()).serialize_json().into_bytes()
-    }
-}
-
-impl Node for PyRRReaderRandOrderConfig {
-    fn make(self: Box<Self>) -> disky::error::Result<Reader> {
-        let file_shards = self.shards.spec.build_disky()?;
-        let source = match self.seed {
-            Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
-            None => RandomRepeatingShardSource::new(file_shards),
-        };
-
-        let mut builder = RoundRobinShardReaderConfig::new(source);
-        if let Some(s) = convert_corruption_strategy(self.corruption_strategy) {
-            builder =
-                builder.reader_options(RecordReaderOptions::default().with_corruption_strategy(s));
-        }
-        if let Some(max) = self.max_active {
-            builder = builder.max_active(max);
-        }
-
-        Box::new(builder).make()
+        self.build_reader()
     }
 }

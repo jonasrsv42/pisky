@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Iterator
 
 from pisky import RecordReaderConfig
+from pisky.corruption import CorruptionStrategy
 from pisky.protocol import StrPath
 from pisky.compression import Zstd, Uncompressed
 from pisky.shard.file_shards import FileShards as ReaderFileShards
@@ -17,6 +18,7 @@ from pisky.shard.writer import FileShards, SequentialConfig
 def count_shards(
     dir_path: StrPath,
     pattern: str = "shard",
+    corruption_strategy: CorruptionStrategy | None = None,
 ) -> int:
     """
     Count total records across all shards in a directory.
@@ -24,6 +26,7 @@ def count_shards(
     Args:
         dir_path: Directory containing shard files
         pattern: Glob pattern prefix for shard files (default: "shard")
+        corruption_strategy: How to handle corrupt records (default: None = ERROR)
 
     Returns:
         Total number of records across all shards
@@ -34,7 +37,9 @@ def count_shards(
         total = count_shards("/data/dataset")
         print(f"Found {total} records")
     """
-    shards = ReaderFileShards.from_pattern(str(dir_path), pattern)
+    shards = ReaderFileShards.from_pattern(
+        str(dir_path), pattern, corruption_strategy=corruption_strategy
+    )
     return _count_records(shards)
 
 
