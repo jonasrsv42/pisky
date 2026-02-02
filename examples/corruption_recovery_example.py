@@ -118,12 +118,14 @@ def multithreaded_corruption_recovery_example(temp_dir: Path):
         print(f"Error reading files: {e}")
         print(f"Read {records_read} records before error")
 
-    # Try to read with recovery strategy
+    # Try to read with recovery strategy (corruption_strategy is now on FileShards)
     print("\nTrying to read with recovery strategy:")
-    reader_shards = ReaderFileShards.from_pattern(str(shard_dir), "shard")
+    reader_shards = ReaderFileShards.from_pattern(
+        str(shard_dir), "shard", corruption_strategy=CorruptionStrategy.RECOVER
+    )
     order = Sequential(reader_shards)
 
-    with ReaderConfig(order, num_parallel=2, corruption_strategy=CorruptionStrategy.RECOVER) as reader:
+    with ReaderConfig(order, num_parallel=2) as reader:
         record_count = 0
         for record in reader:
             record_count += 1
