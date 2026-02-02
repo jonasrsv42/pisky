@@ -27,12 +27,25 @@ class NamedNode:
 
     def __str__(self) -> str:
         """Return a tree-formatted string representation."""
-        return self._to_string(prefix="", is_root=True)
+        return self._to_string(prefix="", is_root=True, total_weight=self.weight)
 
-    def _to_string(self, prefix: str, is_root: bool, is_last: bool = True) -> str:
+    def _to_string(
+        self,
+        prefix: str,
+        is_root: bool,
+        is_last: bool = True,
+        total_weight: float | None = None,
+    ) -> str:
         """Build string representation recursively."""
-        # Format weight
-        weight_str = f" ({self.weight})" if self.weight is not None else ""
+        # Format weight with percentage
+        if self.weight is not None:
+            if total_weight is not None and total_weight > 0:
+                pct = (self.weight / total_weight) * 100
+                weight_str = f" ({self.weight}, {pct:.1f}%)"
+            else:
+                weight_str = f" ({self.weight})"
+        else:
+            weight_str = ""
 
         # Format metadata
         if self.metadata:
@@ -53,6 +66,8 @@ class NamedNode:
         # Add children
         for i, child in enumerate(self.children):
             is_last_child = i == len(self.children) - 1
-            line += child._to_string(child_prefix, is_root=False, is_last=is_last_child)
+            line += child._to_string(
+                child_prefix, is_root=False, is_last=is_last_child, total_weight=total_weight
+            )
 
         return line
