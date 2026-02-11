@@ -12,7 +12,7 @@ use super::source::PyFileShards;
 pub type ShardSourceIter = Box<dyn Iterator<Item = Result<Shard>> + Send + Sync>;
 
 /// Sequential iteration over shards (in-order, finite).
-#[pyclass(name = "SequentialOrder")]
+#[pyclass(name = "SequentialOrder", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PySequentialOrder {
     pub shards: PyFileShards,
@@ -27,7 +27,7 @@ impl PySequentialOrder {
 }
 
 /// Random repeating iteration over shards (shuffled, infinite).
-#[pyclass(name = "RandomRepeatOrder")]
+#[pyclass(name = "RandomRepeatOrder", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyRandomRepeatOrder {
     pub shards: PyFileShards,
@@ -62,7 +62,7 @@ impl ShardOrder {
                 let file_shards = order.shards.into_disky()?;
                 let source = match order.seed {
                     Some(seed) => RandomRepeatingShardSource::with_seed(file_shards, seed),
-                    None => RandomRepeatingShardSource::new(file_shards),
+                    None => RandomRepeatingShardSource::new(file_shards)?,
                 };
                 Ok(Box::new(source))
             }

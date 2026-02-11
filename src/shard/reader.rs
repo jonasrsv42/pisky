@@ -72,7 +72,7 @@ impl PyShardReader {
 ///     with SequentialReaderConfig(order) as reader:
 ///         for record in reader:
 ///             process(record)
-#[pyclass(name = "SequentialReaderConfig")]
+#[pyclass(name = "SequentialReaderConfig", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PySequentialReaderConfig {
     pub order: ShardOrder,
@@ -134,7 +134,7 @@ impl Node for PySequentialReaderConfig {
 ///     with RoundRobinReaderConfig(order, max_active=4) as reader:
 ///         for record in reader:
 ///             process(record)
-#[pyclass(name = "RoundRobinReaderConfig")]
+#[pyclass(name = "RoundRobinReaderConfig", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyRoundRobinReaderConfig {
     pub order: ShardOrder,

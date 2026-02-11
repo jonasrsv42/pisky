@@ -7,7 +7,7 @@ use disky::compression::CompressionType;
 /// Example:
 ///     RecordWriterConfig("data.disky", compression=Zstd(3))
 ///     RecordWriterConfig("data.disky", compression=Zstd())  # default level 3
-#[pyclass(name = "Zstd")]
+#[pyclass(name = "Zstd", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyZstd {
     pub level: i32,
@@ -30,7 +30,7 @@ impl PyZstd {
 ///
 /// Example:
 ///     RecordWriterConfig("data.disky", compression=Uncompressed())
-#[pyclass(name = "Uncompressed")]
+#[pyclass(name = "Uncompressed", from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyUncompressed;
 

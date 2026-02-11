@@ -27,7 +27,7 @@ use super::node::PyTreeReader;
 ///     with config as reader:
 ///         for record in reader:
 ///             # Records sampled proportionally from sources
-#[pyclass(name = "SamplingConfig")]
+#[pyclass(name = "SamplingConfig", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PySamplingConfig {
     pub sources: Vec<(Box<PyNodeEnum>, f64)>,

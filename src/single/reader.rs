@@ -21,7 +21,7 @@ use crate::tree::node::PyNodeEnum;
 ///     with RecordReaderConfig("data.disky") as reader:
 ///         for record in reader:
 ///             process(record)
-#[pyclass(name = "RecordReaderConfig")]
+#[pyclass(name = "RecordReaderConfig", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyRecordReaderConfig {
     pub path: String,

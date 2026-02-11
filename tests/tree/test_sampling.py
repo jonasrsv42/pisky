@@ -197,7 +197,7 @@ class TestSamplingConfig:
 
             # Exact expected order with seed=42 for sampling and seed=1 for shuffle
             expected = [
-                b"b0", b"b1", b"b2", b"a2", b"a1", b"a0", b"b3", b"b4", b"a3", b"a4",
+                b"b0", b"b1", b"b2", b"a2", b"a3", b"a1", b"b3", b"b4", b"a0", b"a4",
             ]
             assert records == expected
 

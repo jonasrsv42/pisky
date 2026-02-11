@@ -146,12 +146,12 @@ class TestRunLengthBounds:
             base_dir = Path(tmpdir)
 
             # Small buffer
-            config_small = create_test_pipeline(base_dir / "small", buffer_size=50)
+            config_small = create_test_pipeline(base_dir / "small", buffer_size=50, seed=123)
             samples_small = read_samples(config_small, 3000)
             runs_small = compute_run_lengths(samples_small)
 
             # Larger buffer
-            config_large = create_test_pipeline(base_dir / "large", buffer_size=500)
+            config_large = create_test_pipeline(base_dir / "large", buffer_size=500, seed=123)
             samples_large = read_samples(config_large, 3000)
             runs_large = compute_run_lengths(samples_large)
 

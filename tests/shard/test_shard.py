@@ -191,13 +191,13 @@ class TestShardReader:
                     if i >= 9:  # Take first 10 records (one full pass)
                         break
 
-            # With seed=123, expect exact shuffled order: 3, 1, 4, 0, 2
+            # With seed=123, expect exact shuffled order: 4, 0, 2, 1, 3
             expected = [
-                b"s3_a", b"s3_b",
-                b"s1_a", b"s1_b",
                 b"s4_a", b"s4_b",
                 b"s0_a", b"s0_b",
                 b"s2_a", b"s2_b",
+                b"s1_a", b"s1_b",
+                b"s3_a", b"s3_b",
             ]
             assert records == expected
 

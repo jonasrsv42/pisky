@@ -20,7 +20,7 @@ use super::node::PyTreeReader;
 ///     with config as reader:
 ///         for record in reader:
 ///             # Records arrive interleaved: a0, b0, a1, b1, ...
-#[pyclass(name = "RoundRobinConfig")]
+#[pyclass(name = "RoundRobinConfig", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyRoundRobinConfig {
     pub children: Vec<PyNodeEnum>,

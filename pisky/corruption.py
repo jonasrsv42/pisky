@@ -1,6 +1,6 @@
 """Corruption handling strategies for the Pisky library."""
 
-from ._pisky import PyCorruptionStrategy
+from ._pisky import CorruptionStrategy as _RustCorruptionStrategy
 
 # Re-export StrPath as PathType for backwards compatibility
 from .protocol import StrPath as PathType
@@ -25,14 +25,14 @@ class CorruptionStrategy:
     ERROR: "CorruptionStrategy"
     RECOVER: "CorruptionStrategy"
 
-    def __init__(self, py_strategy: PyCorruptionStrategy) -> None:
+    def __init__(self, py_strategy: _RustCorruptionStrategy) -> None:
         self._py_strategy = py_strategy
 
-    def _to_py(self) -> PyCorruptionStrategy:
-        """Get the underlying PyCorruptionStrategy for passing to Rust."""
+    def _to_py(self) -> _RustCorruptionStrategy:
+        """Get the underlying _RustCorruptionStrategy for passing to Rust."""
         return self._py_strategy
 
 
 # Initialize the class-level enum values
-CorruptionStrategy.ERROR = CorruptionStrategy(PyCorruptionStrategy.Error)
-CorruptionStrategy.RECOVER = CorruptionStrategy(PyCorruptionStrategy.Recover)
+CorruptionStrategy.ERROR = CorruptionStrategy(_RustCorruptionStrategy.Strict)
+CorruptionStrategy.RECOVER = CorruptionStrategy(_RustCorruptionStrategy.Recover)

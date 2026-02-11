@@ -38,7 +38,7 @@ impl ShardSpec {
 ///     shards = FileShards.from_prefix("/data/shard")
 ///     shards = FileShards.from_paths(["/data/shard_0", "/data/shard_1"])
 ///     shards = shards.with_corruption_strategy(CorruptionStrategy.RECOVER)
-#[pyclass(name = "ReaderFileShards")]
+#[pyclass(name = "ReaderFileShards", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyFileShards {
     pub spec: ShardSpec,

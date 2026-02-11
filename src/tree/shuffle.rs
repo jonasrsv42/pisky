@@ -22,7 +22,7 @@ use super::node::PyTreeReader;
 ///     with config as reader:
 ///         for record in reader:
 ///             # Records arrive in shuffled order
-#[pyclass(name = "ShuffleConfig")]
+#[pyclass(name = "ShuffleConfig", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyShuffleConfig {
     pub child: Box<PyNodeEnum>,

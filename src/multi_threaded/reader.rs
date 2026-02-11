@@ -46,7 +46,7 @@ impl PyMultiThreadedReader {
     }
 
     fn __next__<'py>(&self, py: Python<'py>) -> PyResult<Option<pyo3_bytes::PyBytes>> {
-        py.allow_threads(|| {
+        py.detach(|| {
             loop {
                 match self.reader.read() {
                     Ok(DiskyParallelPiece::Record(bytes)) => {
@@ -61,7 +61,7 @@ impl PyMultiThreadedReader {
     }
 
     fn close<'py>(&self, py: Python<'py>) -> PyResult<()> {
-        py.allow_threads(|| {
+        py.detach(|| {
             self.reader
                 .close()
                 .map_err(|e| PyIOError::new_err(e.to_string()))
@@ -81,7 +81,7 @@ impl PyMultiThreadedReader {
 ///     with MultiThreadedReaderConfig(order, num_parallel=4) as reader:
 ///         for record in reader:
 ///             process(record)
-#[pyclass(name = "MultiThreadedReaderConfig")]
+#[pyclass(name = "MultiThreadedReaderConfig", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyMultiThreadedReaderConfig {
     pub order: ShardOrder,

@@ -215,7 +215,7 @@ class TestShuffleConfig:
             # With seed=42 and buffer_size=3, expect this exact order
             # (determined by reservoir shuffle algorithm)
             expected = [
-                b"r1", b"r3", b"r4", b"r0", b"r5", b"r2", b"r8", b"r6", b"r9", b"r7",
+                b"r0", b"r1", b"r3", b"r4", b"r2", b"r6", b"r7", b"r8", b"r9", b"r5",
             ]
             assert records == expected
 

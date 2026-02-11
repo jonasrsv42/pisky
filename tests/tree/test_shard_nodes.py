@@ -180,7 +180,7 @@ class TestShardNodesInTree:
                 with RecordWriterConfig(path) as w:
                     w.write(f"g2_{i}".encode())
 
-            # Both with same seed=123 -> both shuffle to order [3,1,4,0,2]
+            # Both with same seed=123 -> both shuffle to order [4,0,2,1,3]
             shards1 = ReaderFileShards.from_pattern(tmpdir, "group1_")
             shards2 = ReaderFileShards.from_pattern(tmpdir, "group2_")
 
@@ -200,11 +200,11 @@ class TestShardNodesInTree:
 
             # Same seed -> same shuffle order -> paired interleaving
             expected = [
-                b"g1_3", b"g2_3",
-                b"g1_1", b"g2_1",
                 b"g1_4", b"g2_4",
                 b"g1_0", b"g2_0",
                 b"g1_2", b"g2_2",
+                b"g1_1", b"g2_1",
+                b"g1_3", b"g2_3",
             ]
             assert records == expected
 
@@ -223,7 +223,7 @@ class TestShardNodesInTree:
                 with RecordWriterConfig(path) as w:
                     w.write(f"g2_{i}".encode())
 
-            # seed=123 -> [3,1,4,0,2], seed=999 -> [2,1,4,3,0]
+            # seed=123 -> [4,0,2,1,3], seed=999 -> [3,2,0,1,4]
             shards1 = ReaderFileShards.from_pattern(tmpdir, "group1_")
             shards2 = ReaderFileShards.from_pattern(tmpdir, "group2_")
 
@@ -243,11 +243,11 @@ class TestShardNodesInTree:
 
             # Different seeds -> different shuffle orders -> mixed interleaving
             expected = [
-                b"g1_3", b"g2_2",
-                b"g1_1", b"g2_1",
-                b"g1_4", b"g2_4",
-                b"g1_0", b"g2_3",
+                b"g1_4", b"g2_3",
+                b"g1_0", b"g2_2",
                 b"g1_2", b"g2_0",
+                b"g1_1", b"g2_1",
+                b"g1_3", b"g2_4",
             ]
             assert records == expected
 

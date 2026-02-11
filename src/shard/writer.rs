@@ -64,7 +64,7 @@ impl ShardSink {
 ///     sink = FileShards.from_pattern("/data", "shard")
 ///     sink = FileShards.from_prefix("/data/shard")
 ///     sink = FileShards.from_pattern("/data", "shard", append=True)
-#[pyclass(name = "WriterFileShards")]
+#[pyclass(name = "WriterFileShards", from_py_object)]
 #[derive(Clone)]
 pub struct PyFileShards {
     pub sink: ShardSink,
@@ -110,7 +110,7 @@ impl PyFileShards {
 ///     sink = FileShards.from_pattern("/data", "shard")
 ///     with Sequential(sink, max_shard_bytes=1_000_000_000) as writer:
 ///         writer.write(b"hello")
-#[pyclass(name = "SequentialWriterConfig")]
+#[pyclass(name = "SequentialWriterConfig", from_py_object)]
 #[derive(Clone)]
 pub struct PySequentialWriterConfig {
     shards: PyFileShards,

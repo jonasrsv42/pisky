@@ -25,7 +25,7 @@ use crate::compression::PyCompression;
 /// with RecordWriterConfig("data.disky") as writer:
 ///     writer.write(b"hello")
 /// ```
-#[pyclass(name = "RecordWriterConfig")]
+#[pyclass(name = "RecordWriterConfig", from_py_object)]
 #[derive(Clone)]
 pub struct PyRecordWriterConfig {
     path: PathBuf,

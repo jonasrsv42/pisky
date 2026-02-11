@@ -25,7 +25,7 @@ use super::node::PyTreeReader;
 ///     with config as reader:
 ///         for record in reader:
 ///             # Records are prefetched on a separate thread
-#[pyclass(name = "ThreadedConfig")]
+#[pyclass(name = "ThreadedConfig", from_py_object)]
 #[derive(Clone, SerJson, DeJson)]
 pub struct PyThreadedConfig {
     pub child: Box<PyNodeEnum>,

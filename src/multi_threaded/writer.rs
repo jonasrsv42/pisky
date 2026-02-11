@@ -14,7 +14,7 @@ use crate::compression::PyCompression;
 use crate::shard::PyWriterFileShards;
 
 /// Config for multi-threaded writer.
-#[pyclass(name = "MultiThreadedWriterConfig")]
+#[pyclass(name = "MultiThreadedWriterConfig", from_py_object)]
 #[derive(Clone)]
 pub struct PyMultiThreadedWriterConfig {
     shards: PyWriterFileShards,
@@ -125,7 +125,7 @@ impl PyMultiThreadedWriterInstance {
     fn write<'py>(&self, py: Python<'py>, data: &[u8]) -> PyResult<()> {
         let bytes_data = Bytes::copy_from_slice(data);
 
-        py.allow_threads(|| match self.writer.write_record(bytes_data) {
+        py.detach(|| match self.writer.write_record(bytes_data) {
             Ok(promise) => {
                 let _ = promise
                     .wait()
@@ -137,7 +137,7 @@ impl PyMultiThreadedWriterInstance {
     }
 
     fn flush<'py>(&self, py: Python<'py>) -> PyResult<()> {
-        py.allow_threads(|| {
+        py.detach(|| {
             self.writer
                 .flush()
                 .map_err(|e| PyIOError::new_err(e.to_string()))
@@ -145,7 +145,7 @@ impl PyMultiThreadedWriterInstance {
     }
 
     fn close<'py>(&self, py: Python<'py>) -> PyResult<()> {
-        py.allow_threads(|| {
+        py.detach(|| {
             self.writer
                 .close()
                 .map_err(|e| PyIOError::new_err(e.to_string()))
