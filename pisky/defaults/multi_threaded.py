@@ -113,6 +113,7 @@ def write_shards_parallel(
     compression: int | None = 3,
     append: bool = False,
     enable_auto_sharding: bool = True,
+    max_bytes_per_shard: int | None = None,
 ):
     """
     Write records to sharded files in parallel (multi-threaded).
@@ -127,6 +128,8 @@ def write_shards_parallel(
             (e.g., creates shard_3 if shard_0-2 exist). Default: False
         enable_auto_sharding: Automatically create new shards when current ones
             reach the byte limit, rotating seamlessly (default: True)
+        max_bytes_per_shard: Maximum bytes per shard before rotation (default: 2GB
+            when auto_sharding is enabled, None/unlimited otherwise)
 
     Yields:
         Writer object with write(record) method
@@ -150,5 +153,6 @@ def write_shards_parallel(
         worker_threads=worker_threads,
         compression=comp,
         enable_auto_sharding=enable_auto_sharding,
+        max_bytes_per_writer=max_bytes_per_shard,
     ) as writer:
         yield writer

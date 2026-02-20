@@ -9,6 +9,9 @@ from pisky.shard.writer import FileShards
 
 __all__ = ["FileShards", "MultiThreadedConfig", "MultiThreadedWriter"]
 
+# Default max bytes per shard when auto-sharding is enabled (2GB)
+DEFAULT_MAX_BYTES_PER_SHARD = 2 * 1024 * 1024 * 1024
+
 
 class MultiThreadedWriter:
     """
@@ -75,11 +78,17 @@ class MultiThreadedConfig:
 
     def __enter__(self) -> MultiThreadedWriter:
         py_compression = self._compression._to_py()
+
+        # Default to 2GB per shard when auto-sharding is enabled
+        max_bytes = self._max_bytes_per_writer
+        if max_bytes is None and self._enable_auto_sharding:
+            max_bytes = DEFAULT_MAX_BYTES_PER_SHARD
+
         self._config = _MTWriterConfig(
             self._shards._inner,
             self._num_shards,
             self._worker_threads,
-            self._max_bytes_per_writer,
+            max_bytes,
             self._task_queue_capacity,
             self._enable_auto_sharding,
             py_compression,
